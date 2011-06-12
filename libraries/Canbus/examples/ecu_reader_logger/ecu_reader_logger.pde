@@ -35,7 +35,9 @@ NewSoftSerial sLCD =  NewSoftSerial(3, 6); /* Serial LCD is connected on pin 14 
 #define RIGHT  A2
 #define DOWN   A3
 #define CLICK  A4
-#define LEFT   A5
+#define LEFT   3
+
+#define CANSPEEDX CANSPEED_500
 
   
 char buffer[512];  //Data will be temporarily stored to this buffer before being written to the file
@@ -123,6 +125,12 @@ void setup() {
   sLCD.print(COMMAND,BYTE);
   sLCD.print(LINE1,BYTE); 
   sLCD.print("L:SD   R:LOG");
+ /*
+  sLCD.print("Thanks Marcel!");
+  sLCD.print(COMMAND,BYTE);
+  sLCD.print(LINE1,BYTE); 
+  sLCD.print("Woohoo! :)" );
+  */
   
   while(1)
   {
@@ -155,7 +163,7 @@ void setup() {
   
   clear_lcd();
   
-  if(Canbus.init(CANSPEED_500))  /* Initialise MCP2515 CAN controller at the specified speed */
+  if(Canbus.init(CANSPEEDX))  /* Initialise MCP2515 CAN controller at the specified speed */
   {
     sLCD.print("CAN Init ok");
   } else
@@ -170,6 +178,8 @@ void setup() {
 
 void loop() {
  
+    int foo = Canbus.ecu_req(ENGINE_RPM, buffer);
+//Serial.println ( foo );
   if(Canbus.ecu_req(ENGINE_RPM,buffer) == 1)          /* Request for engine RPM */
   {
     sLCD.print(COMMAND,BYTE);                   /* Move LCD cursor to line 0 */
@@ -219,7 +229,7 @@ void logging(void)
 {
   clear_lcd();
   
-  if(Canbus.init(CANSPEED_500))  /* Initialise MCP2515 CAN controller at the specified speed */
+  if(Canbus.init(CANSPEEDX))  /* Initialise MCP2515 CAN controller at the specified speed */
   {
     sLCD.print("CAN Init ok");
   } else
@@ -268,9 +278,7 @@ void logging(void)
      
      file.print(waypoint++);
      file.print(',');
-     file.print(lat_str);
-     file.print(',');
-     file.print(lon_str);
+     file.print(buffer);
      file.print(',');
       
     if(Canbus.ecu_req(ENGINE_RPM,buffer) == 1)          /* Request for engine RPM */
@@ -486,6 +494,8 @@ void gps_test(void){
   
    readline();
   
+  Serial.print ( "Buffer: ");
+  Serial.println ( buffer );
   // check if $GPRMC (global positioning fixed data)
   if (strncmp(buffer, "$GPRMC",6) == 0) {
     

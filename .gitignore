@@ -8,3 +8,4 @@ libraries/MCP2515
 binaries/MCP2515.zip
 binaries/CANInterface.zip
 libraries/SerialLCD
+out.diff

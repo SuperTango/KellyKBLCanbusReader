@@ -46,7 +46,6 @@ char lat_str[14];
 char lon_str[14];
 
 int read_size=0;   //Used as an indicator for how many characters are read from the file
-int count=0;       //Miscellaneous variable
 
 int D10 = 10;
 

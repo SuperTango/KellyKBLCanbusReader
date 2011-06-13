@@ -498,109 +498,101 @@ void sd_test(void)
 
   
  while(1);  /* Don't return */ 
-    
-
 }
-bool read_gps(void)
-{
- uint32_t tmp;
 
-  unsigned char i;
-  unsigned char exit = 0;
+bool read_gps(void) {
+    uint32_t tmp;
+    unsigned char i;
+    unsigned char exit = 0;
 
-  while( exit == 0)
-  { 
-    
-        /*
-         * bail out if the non-blocking readline doesn't have any data
-         */
-    if ( ! readline() ) {
-        return false;
+    while( exit == 0) { 
+        
+            /*
+             * bail out if the non-blocking readline doesn't have any data
+             */
+        if ( ! readline() ) {
+            return false;
+        }
+     
+              // check if $GPRMC (global positioning fixed data)
+        if (strncmp(buffer, "$GPRMC",6) == 0) {
+            digitalWrite(LED2, HIGH);
+            
+            // hhmmss time data
+            parseptr = buffer+7;
+            tmp = parsedecimal(parseptr); 
+            hour = tmp / 10000;
+            minute = (tmp / 100) % 100;
+            second = tmp % 100;
+            
+            parseptr = strchr(parseptr, ',') + 1;
+            status = parseptr[0];
+            parseptr += 2;
+              
+            for(i=0;i<11;i++)
+            {
+                lat_str[i] = parseptr[i];
+            }
+            lat_str[12] = 0;
+            // Serial.println(" ");
+            // Serial.println(lat_str);
+           
+            // grab latitude & long data
+            latitude = parsedecimal(parseptr);
+            if (latitude != 0) {
+                latitude *= 10000;
+                parseptr = strchr(parseptr, '.')+1;
+                latitude += parsedecimal(parseptr);
+            }
+            parseptr = strchr(parseptr, ',') + 1;
+            // read latitude N/S data
+            if (parseptr[0] != ',') {
+              latdir = parseptr[0];
+            }
+            
+            // longitude
+            parseptr = strchr(parseptr, ',')+1;
+          
+            for(i=0;i<12;i++)
+            {
+              lon_str[i] = parseptr[i];
+            }
+            lon_str[13] = 0;
+            
+            //Serial.println(lon_str);
+       
+            longitude = parsedecimal(parseptr);
+            if (longitude != 0) {
+                longitude *= 10000;
+                parseptr = strchr(parseptr, '.')+1;
+                longitude += parsedecimal(parseptr);
+            }
+            parseptr = strchr(parseptr, ',')+1;
+            // read longitude E/W data
+            if (parseptr[0] != ',') {
+                longdir = parseptr[0];
+            }
+        
+            // groundspeed
+            parseptr = strchr(parseptr, ',')+1;
+            groundspeed = parsedecimal(parseptr);
+        
+            // track angle
+            parseptr = strchr(parseptr, ',')+1;
+            trackangle = parsedecimal(parseptr);
+        
+            // date
+            parseptr = strchr(parseptr, ',')+1;
+            tmp = parsedecimal(parseptr); 
+            date = tmp / 10000;
+            month = (tmp / 100) % 100;
+            year = tmp % 100;
+            
+            digitalWrite(LED2, LOW);
+            exit = 1;
+        }
     }
- 
-          // check if $GPRMC (global positioning fixed data)
-    if (strncmp(buffer, "$GPRMC",6) == 0) {
-        digitalWrite(LED2, HIGH);
-        
-        // hhmmss time data
-        parseptr = buffer+7;
-        tmp = parsedecimal(parseptr); 
-        hour = tmp / 10000;
-        minute = (tmp / 100) % 100;
-        second = tmp % 100;
-        
-        parseptr = strchr(parseptr, ',') + 1;
-        status = parseptr[0];
-        parseptr += 2;
-          
-        for(i=0;i<11;i++)
-        {
-          lat_str[i] = parseptr[i];
-        }
-        lat_str[12] = 0;
-      //  Serial.println(" ");
-      //  Serial.println(lat_str);
-       
-        // grab latitude & long data
-        latitude = parsedecimal(parseptr);
-        if (latitude != 0) {
-          latitude *= 10000;
-          parseptr = strchr(parseptr, '.')+1;
-          latitude += parsedecimal(parseptr);
-        }
-        parseptr = strchr(parseptr, ',') + 1;
-        // read latitude N/S data
-        if (parseptr[0] != ',') {
-          
-          latdir = parseptr[0];
-        }
-        
-        // longitude
-        parseptr = strchr(parseptr, ',')+1;
-      
-        for(i=0;i<12;i++)
-        {
-          lon_str[i] = parseptr[i];
-        }
-        lon_str[13] = 0;
-        
-        //Serial.println(lon_str);
-   
-        longitude = parsedecimal(parseptr);
-        if (longitude != 0) {
-          longitude *= 10000;
-          parseptr = strchr(parseptr, '.')+1;
-          longitude += parsedecimal(parseptr);
-        }
-        parseptr = strchr(parseptr, ',')+1;
-        // read longitude E/W data
-        if (parseptr[0] != ',') {
-          longdir = parseptr[0];
-        }
-        
-    
-        // groundspeed
-        parseptr = strchr(parseptr, ',')+1;
-        groundspeed = parsedecimal(parseptr);
-    
-        // track angle
-        parseptr = strchr(parseptr, ',')+1;
-        trackangle = parsedecimal(parseptr);
-    
-        // date
-        parseptr = strchr(parseptr, ',')+1;
-        tmp = parsedecimal(parseptr); 
-        date = tmp / 10000;
-        month = (tmp / 100) % 100;
-        year = tmp % 100;
-        
-       
-        digitalWrite(LED2, LOW);
-        exit = 1;
-       }
-       
-  }
-
+    return true;
 }
 
       
@@ -773,7 +765,6 @@ void gps_test(void){
 
 bool readline(void) {
   char c;
-  bool keeplooping = true;
   int available;
   
   buffidx = 0; // start at begninning
@@ -793,6 +784,7 @@ bool readline(void) {
       buffer[buffidx++]= c;
   }
 }
+
 uint32_t parsedecimal(char *str) {
   uint32_t d = 0;
   
@@ -808,8 +800,8 @@ uint32_t parsedecimal(char *str) {
 
 void clear_lcd(void)
 {
-  sLCD.print(COMMAND,BYTE);
-  sLCD.print(CLEAR,BYTE);
+    sLCD.print(COMMAND,BYTE);
+    sLCD.print(CLEAR,BYTE);
 }  
 
 void move_to ( int row, int column ) {

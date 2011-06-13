@@ -5,6 +5,7 @@ nogit
 CANInterface
 libraries/CANInterface
 libraries/MCP2515
+libraries/TinyGPS
 binaries/MCP2515.zip
 binaries/CANInterface.zip
 libraries/SerialLCD

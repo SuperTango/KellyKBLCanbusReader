@@ -17,6 +17,7 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 #include <NewSoftSerial.h>
 #include <KellyCanbus.h>
 #include <mcp2515.h>
+#include <stdlib.h>
 
 
 Sd2Card card;
@@ -48,7 +49,6 @@ char lat_str[14];
 char lon_str[14];
 
 int read_size=0;   //Used as an indicator for how many characters are read from the file
-int count=0;       //Miscellaneous variable
 
 int D10 = 10;
 
@@ -61,6 +61,8 @@ bool gotMessage;
 
 int baseChars16Column[4] = { 0, 64, 16, 80 };
 int baseChars20Column[4] = { 0, 64, 20, 84 };
+
+unsigned long lastMillis = 0;
 
 // store error strings in flash to save RAM
 #define error(s) error_P(PSTR(s))
@@ -127,7 +129,7 @@ void setup() {
   digitalWrite(CLICK, HIGH);
   
   
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("ECU Reader");  /* For debug use */
   
   sLCD.begin(9600);              /* Setup serial LCD and clear the screen */
@@ -237,38 +239,55 @@ void setup() {
 
 }
  
-uint8_t CCP_A2D_BATCH_READ2_DATA2[8] = { 0x1a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
 void loop() {
+    bool gotGPSData = false;
     iterations++;
 
-    move_to ( 0, 0 );
-    sLCD.print ( iterations, DEC );
-    move_to ( 1, 0 );
-    sLCD.print ( "B+: " );
     kellyCanbus.fetchRuntimeData();
-    //sLCD.print ( kellyCanbus.getTractionPackVoltageRaw(), DEC );
-    //sLCD.print ( " (" );
-    sLCD.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-    uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-    bool status = kellyCanbus.request ( CCP_A2D_BATCH_READ2_DATA2, responseData );
+    gotGPSData = read_gps();
+    if ( ( millis() - lastMillis ) >= 1000 ) {
+        lastMillis = millis();
+        move_to ( 0, 0 );
+        sLCD.print ( groundspeed * 1.15077945, 2 );
+        sLCD.print ( " " );
+        sLCD.print ( kellyCanbus.getMPHFromRPM(), 2 );
+        sLCD.print ( " " );
+        sLCD.print ( (float)iterations / (float)millis() * (float)1000, 1 );
+        move_to ( 1, 0 );
+        sLCD.print ( "B+: " );
+        sLCD.print ( kellyCanbus.getTractionPackVoltage(), 3 );
+    }
+    
+    //Serial.println ( buffer );
+    Serial.print ( year, DEC );
+    Serial.print ( month, DEC );
+    Serial.print ( date, DEC );
+    Serial.print ( "_" );
+    Serial.print ( hour, DEC );
+    Serial.print ( minute, DEC );
+    Serial.print ( second, DEC );
+    Serial.print ( "," );
+    Serial.print ( groundspeed * 1.15077945, 2 );
+    Serial.print ( "," );
+    Serial.print ( kellyCanbus.getMPHFromRPM(), 2 );
+    Serial.print ( "," );
     Serial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-    Serial.print ( ", " );
-    Serial.print ( "I: " );
-    Serial.print ( responseData[0], DEC );
-    Serial.print ( " " );
-    Serial.print ( responseData[1], DEC );
-    Serial.print ( " " );
-    Serial.print ( responseData[2], DEC );
-
-    Serial.print ( "V: " );
-    Serial.print ( responseData[3], DEC );
-    Serial.print ( " " );
-    Serial.print ( responseData[4], DEC );
-    Serial.print ( " " );
-    Serial.print ( responseData[5], DEC );
+    Serial.print ( "," );
+    Serial.print ( lat_str );
+    Serial.print ( "," );
+    Serial.print ( lon_str );
+    Serial.print ( "," );
+    Serial.print ( groundspeed, DEC );
+    Serial.print ( "," );
+    Serial.print ( trackangle, DEC );
+    Serial.print ( "," );
+    for ( int i = 0; i < 22; i++ ) {
+        Serial.print ( kellyCanbus.rawData[i], DEC );
+        Serial.print ( "," );
+    }
     Serial.println();
-    //sLCD.print ( ")" );
+   
+    //Serial.println ( kellyCanbus.dump() );
  
 //  if(Canbus.ecu_req(ENGINE_RPM,buffer) == 1)          /* Request for engine RPM */
 //  {
@@ -318,7 +337,7 @@ void loop() {
 //        Serial.print ( iterations );
 //        Serial.println ( " iterations" );
 //    }
-    delay(100); 
+    //delay(100); 
 }
 
 
@@ -482,22 +501,25 @@ void sd_test(void)
     
 
 }
-void read_gps(void)
+bool read_gps(void)
 {
  uint32_t tmp;
 
   unsigned char i;
   unsigned char exit = 0;
-  
-  
+
   while( exit == 0)
   { 
     
-   readline();
+        /*
+         * bail out if the non-blocking readline doesn't have any data
+         */
+    if ( ! readline() ) {
+        return false;
+    }
  
-  // check if $GPRMC (global positioning fixed data)
-   if (strncmp(buffer, "$GPRMC",6) == 0) {
-     
+          // check if $GPRMC (global positioning fixed data)
+    if (strncmp(buffer, "$GPRMC",6) == 0) {
         digitalWrite(LED2, HIGH);
         
         // hhmmss time data
@@ -577,7 +599,7 @@ void read_gps(void)
         exit = 1;
        }
        
-  }   
+  }
 
 }
 
@@ -749,20 +771,24 @@ void gps_test(void){
 
 }
 
-void readline(void) {
+bool readline(void) {
   char c;
+  bool keeplooping = true;
+  int available;
   
   buffidx = 0; // start at begninning
+  if ( ! mySerial.available() ) {
+      return false;
+  }
   while (1) {
       c=mySerial.read();
       if (c == -1)
         continue;
-  //    Serial.print(c);
-      if (c == '\n')
+      if (c == '\r')
         continue;
-      if ((buffidx == BUFFSIZ-1) || (c == '\r')) {
+      if ((buffidx == BUFFSIZ-1) || (c == '\n')) {
         buffer[buffidx] = 0;
-        return;
+        return true;
       }
       buffer[buffidx++]= c;
   }

@@ -13,6 +13,16 @@
 #define CANSPEED_1000	0		// CAN speed at 1Mbps
 #include <mcp2515.h>
 
+#define MOTOR_SAMPLES 10
+
+typedef struct {
+    float iAAvg;
+    float iBAvg;
+    float iCAvg;
+    float vAAvg;
+    float vBAvg;
+    float vCAvg;
+} MotorInfo;
 
 class KellyCanbus
 {
@@ -22,13 +32,14 @@ class KellyCanbus
         void fetchRuntimeData();
         void getCCP_A2D_BATCH_READ1();
         void getCCP_A2D_BATCH_READ2();
+        void getCCP_MONITOR1();
+        void getCCP_MONITOR2();
         float getTractionPackVoltage();
-        uint8_t getTractionPackVoltageRaw();
-        //int getModel(char *buffer);
-        //bool getNextMessage(int *iterations, tCAN *message);
-        //uint16_t batchRead1(int *iterations, tCAN *outMessage);
-        //float getTractionPackVoltage();
-        bool request (uint8_t[8], uint8_t*);
+        float getMPHFromRPM();
+        MotorInfo* getMotorInfo();
+        String dump();
+        bool canRequest (uint8_t[8], uint8_t*);
+        uint8_t rawData[22];
     private:
         char model[8];
         float divider;
@@ -37,12 +48,22 @@ class KellyCanbus
         uint8_t controllerVoltageRaw;
         uint8_t fiveVoltVoltageRaw;
         uint8_t tractionPackVoltageRaw;
-        uint8_t iA;
-        uint8_t iB;
-        uint8_t iC;
-        uint8_t vA;
-        uint8_t vB;
-        uint8_t vC;
+        uint8_t iA[MOTOR_SAMPLES];
+        uint8_t iB[MOTOR_SAMPLES];
+        uint8_t iC[MOTOR_SAMPLES];
+        uint8_t vA[MOTOR_SAMPLES];
+        uint8_t vB[MOTOR_SAMPLES];
+        uint8_t vC[MOTOR_SAMPLES];
+        uint8_t pwm;
+        uint8_t enableMotorRotation;
+        uint8_t motorTemperature;
+        uint8_t controllerTemperature;
+        uint8_t highMosfetTemp;
+        uint8_t lowMosfetTemp;
+        uint16_t rpm;
+        uint8_t percentRatedCurrent;
+        uint16_t errorCode;
+        MotorInfo motorInfo;
 
 	
 };

@@ -811,6 +811,7 @@ void init_logger() {
     //file.open ( name );
     Serial.println ( "PRE_A" );
     Serial.println ( "A" );
+    SdFile::dateTimeCallback(dateTime);
     if (file.isOpen() ) {
         Serial.println ( "Open succeeded" );
         file.write ( "Starting!\n" );
@@ -820,3 +821,13 @@ void init_logger() {
         error ("file.open");
     }
 }
+
+void dateTime(uint16_t* date, uint16_t* time) {
+
+  // return date using FAT_DATE macro to format fields
+  *date = FAT_DATE((uint16_t)year, (uint16_t)month, (uint16_t)date );
+
+  // return time using FAT_TIME macro to format fields
+  *time = FAT_TIME((uint16_t)hour, (uint16_t)minute, (uint16_t)second );
+}
+

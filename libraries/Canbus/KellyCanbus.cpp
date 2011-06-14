@@ -27,6 +27,7 @@ uint8_t CCP_MONITOR2_DATA[1] = { 0x37 };
 #define CCP_MONITOR2_OFFSET 17
 
 unsigned int count = 0;
+uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
 KellyCanbus::KellyCanbus(float divider) {
@@ -47,7 +48,7 @@ void KellyCanbus::fetchRuntimeData() {
 }
 
 void KellyCanbus::getCCP_A2D_BATCH_READ1() {
-    uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    memset ( responseData, 0, 8 );
     bool status = canRequest ( CCP_A2D_BATCH_READ1_DATA, responseData );
     memcpy ( rawData + CCP_A2D_BATCH_READ1_OFFSET, responseData, 5 );
     //brakeAnalogRaw = responseData[0];
@@ -58,7 +59,7 @@ void KellyCanbus::getCCP_A2D_BATCH_READ1() {
 }
 
 void KellyCanbus::getCCP_A2D_BATCH_READ2() {
-    uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    memset ( responseData, 0, 8 );
     bool status = canRequest ( CCP_A2D_BATCH_READ2_DATA, responseData );
     memcpy ( rawData + CCP_A2D_BATCH_READ2_OFFSET, responseData, 6 );
     iA[count % MOTOR_SAMPLES] = responseData[0];
@@ -70,7 +71,7 @@ void KellyCanbus::getCCP_A2D_BATCH_READ2() {
 }
 
 void KellyCanbus::getCCP_MONITOR1() {
-    uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    memset ( responseData, 0, 8 );
     bool status = canRequest ( CCP_MONITOR1_DATA, responseData );
     memcpy ( rawData + CCP_MONITOR1_OFFSET, responseData, 6 );
     //pwm = responseData[0];
@@ -82,7 +83,7 @@ void KellyCanbus::getCCP_MONITOR1() {
 }
 
 void KellyCanbus::getCCP_MONITOR2() {
-    uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    memset ( responseData, 0, 8 );
     bool status = canRequest ( CCP_MONITOR2_DATA, responseData );
     memcpy ( rawData + CCP_MONITOR2_OFFSET, responseData, 5 );
     rpm = responseData[0] << 8 | responseData[1];

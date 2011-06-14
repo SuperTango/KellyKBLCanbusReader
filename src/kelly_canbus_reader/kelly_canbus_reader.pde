@@ -66,11 +66,15 @@ int LED3 = 7;
 
 int iterations;
 
+int brightness = 129;
+
 //int baseChars16Column[4] = { 0, 64, 16, 80 };
 int baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long lastMillis = 0;
 unsigned long lastMillis2 = 0;
+unsigned long lastClickMillis = 0;
+
 
 // store error strings in flash to save RAM
 //#define error(s) error_P(PSTR(s))
@@ -222,6 +226,30 @@ void loop() {
         move_to ( 2, 0 );
         lcd.print("DONE");
         while ( 1 ) {
+        }
+    } else if (digitalRead(UP) == 0) {  /* Check for Click button */
+        if ( millis() - lastClickMillis > 1000 ) {
+            lastClickMillis = millis();
+            brightness += 5;
+            if ( brightness > 157 ) {
+                brightness = 157;
+            }
+            Serial.print ( "setting brightness to: " );
+            Serial.println ( brightness, DEC );
+            lcd.print ( 0x7C, BYTE );
+            lcd.print ( brightness, BYTE );
+        }
+    } else if (digitalRead(DOWN) == 0) {  /* Check for Click button */
+        if ( millis() - lastClickMillis > 1000 ) {
+            lastClickMillis = millis();
+            brightness -= 5;
+            if ( brightness < 128 ) {
+                brightness = 128;
+            }
+            Serial.print ( "setting brightness to: " );
+            Serial.println ( brightness, DEC );
+            lcd.print ( 0x7C, BYTE );
+            lcd.print ( brightness, BYTE );
         }
     }
 

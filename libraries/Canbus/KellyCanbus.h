@@ -43,10 +43,10 @@ class KellyCanbus
     private:
         char model[8];
         float divider;
-        uint8_t brakeAnalogRaw;
-        uint8_t throttleAnalogRaw;
-        uint8_t controllerVoltageRaw;
-        uint8_t fiveVoltVoltageRaw;
+        //uint8_t brakeAnalogRaw;
+        //uint8_t throttleAnalogRaw;
+        //uint8_t controllerVoltageRaw;
+        //uint8_t fiveVoltVoltageRaw;
         uint8_t tractionPackVoltageRaw;
         uint8_t iA[MOTOR_SAMPLES];
         uint8_t iB[MOTOR_SAMPLES];
@@ -54,15 +54,15 @@ class KellyCanbus
         uint8_t vA[MOTOR_SAMPLES];
         uint8_t vB[MOTOR_SAMPLES];
         uint8_t vC[MOTOR_SAMPLES];
-        uint8_t pwm;
-        uint8_t enableMotorRotation;
-        uint8_t motorTemperature;
-        uint8_t controllerTemperature;
-        uint8_t highMosfetTemp;
-        uint8_t lowMosfetTemp;
+        //uint8_t pwm;
+        //uint8_t enableMotorRotation;
+        //uint8_t motorTemperature;
+        //uint8_t controllerTemperature;
+        //uint8_t highMosfetTemp;
+        //uint8_t lowMosfetTemp;
         uint16_t rpm;
-        uint8_t percentRatedCurrent;
-        uint16_t errorCode;
+        //uint8_t percentRatedCurrent;
+        //uint16_t errorCode;
         MotorInfo motorInfo;
 
 	

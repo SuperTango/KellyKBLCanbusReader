@@ -16,10 +16,10 @@
 #include "defaults.h"
 #include "KellyCanbus.h"
 
-uint8_t CCP_A2D_BATCH_READ1_DATA[8] = { 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t CCP_A2D_BATCH_READ2_DATA[8] = { 0x1a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t CCP_MONITOR1_DATA[8] = { 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t CCP_MONITOR2_DATA[8] = { 0x37, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+uint8_t CCP_A2D_BATCH_READ1_DATA[1] = { 0x1b };
+uint8_t CCP_A2D_BATCH_READ2_DATA[1] = { 0x1a };
+uint8_t CCP_MONITOR1_DATA[1] = { 0x33 };
+uint8_t CCP_MONITOR2_DATA[1] = { 0x37 };
 
 #define CCP_A2D_BATCH_READ1_OFFSET 0
 #define CCP_A2D_BATCH_READ2_OFFSET 5
@@ -50,10 +50,10 @@ void KellyCanbus::getCCP_A2D_BATCH_READ1() {
     uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     bool status = canRequest ( CCP_A2D_BATCH_READ1_DATA, responseData );
     memcpy ( rawData + CCP_A2D_BATCH_READ1_OFFSET, responseData, 5 );
-    brakeAnalogRaw = responseData[0];
-    throttleAnalogRaw = responseData[1];
-    controllerVoltageRaw = responseData[2];
-    fiveVoltVoltageRaw = responseData[3];
+    //brakeAnalogRaw = responseData[0];
+    //throttleAnalogRaw = responseData[1];
+    //controllerVoltageRaw = responseData[2];
+    //fiveVoltVoltageRaw = responseData[3];
     tractionPackVoltageRaw = responseData[4];
 }
 
@@ -73,12 +73,12 @@ void KellyCanbus::getCCP_MONITOR1() {
     uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     bool status = canRequest ( CCP_MONITOR1_DATA, responseData );
     memcpy ( rawData + CCP_MONITOR1_OFFSET, responseData, 6 );
-    pwm = responseData[0];
-    enableMotorRotation = responseData[1];
-    motorTemperature = responseData[2];
-    controllerTemperature = responseData[3];
-    highMosfetTemp = responseData[4];
-    lowMosfetTemp = responseData[5];
+    //pwm = responseData[0];
+    //enableMotorRotation = responseData[1];
+    //motorTemperature = responseData[2];
+    //controllerTemperature = responseData[3];
+    //highMosfetTemp = responseData[4];
+    //lowMosfetTemp = responseData[5];
 }
 
 void KellyCanbus::getCCP_MONITOR2() {
@@ -86,8 +86,8 @@ void KellyCanbus::getCCP_MONITOR2() {
     bool status = canRequest ( CCP_MONITOR2_DATA, responseData );
     memcpy ( rawData + CCP_MONITOR2_OFFSET, responseData, 5 );
     rpm = responseData[0] << 8 | responseData[1];
-    percentRatedCurrent = responseData[2];
-    errorCode = responseData[3] << 8 | responseData[4];
+    //percentRatedCurrent = responseData[2];
+    //errorCode = responseData[3] << 8 | responseData[4];
 }
 
 float KellyCanbus::getMPHFromRPM() {
@@ -126,7 +126,7 @@ bool KellyCanbus::canRequest(uint8_t requestData[8], uint8_t *responseData) {
     request.id = 0x6B;
     request.header.rtr = 0;
     request.header.length = 1;
-    memcpy ( request.data, requestData, 8 );
+    memcpy ( request.data, requestData, 1 );
     mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
     address = mcp2515_send_message(&request);
     

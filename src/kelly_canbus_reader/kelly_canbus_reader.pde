@@ -18,11 +18,14 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 #include <KellyCanbus.h>
 #include <mcp2515.h>
 #include <stdlib.h>
+#include <PString.h>
 
 
-Sd2Card card;
-SdVolume volume;
-SdFile root;
+SdFat sd;
+//Sd2Card card;
+//SdVolume volume;
+//SdFile root;
+//ofstream file;
 SdFile file;
 
 NewSoftSerial lcd = NewSoftSerial(3, 6);
@@ -38,38 +41,42 @@ NewSoftSerial gps = NewSoftSerial(4, 5);
 #define KNOTSTOMPH 1.15077945
 
 
+#define GPSRATE 4800
+//#define GPSRATE 38400
+
+// GPS parser for 406a
+#define BUFFSIZ 90 // plenty big
+
 /* Define Joystick connection */
 #define UP     A1
 #define RIGHT  A2
 #define DOWN   A3
 #define CLICK  A4
 #define LEFT   3
+#define CHIP_SELECT 9
 
-char buffer[256];  //Data will be temporarily stored to this buffer before being written to the file
-char printBuffer[256];
-char tempbuf[15];
+char buffer[BUFFSIZ];  //Data will be temporarily stored to this buffer before being written to the file
+char logLineBuffer[200];
+PString logLine (logLineBuffer, sizeof(logLineBuffer));
 char lat_str[14];
 char lon_str[14];
-
-int read_size=0;   //Used as an indicator for how many characters are read from the file
-
-int D10 = 10;
 
 int LED2 = 8;
 int LED3 = 7;
 
-tCAN canbusMessage;
 int iterations;
-bool gotMessage;
 
-int baseChars16Column[4] = { 0, 64, 16, 80 };
+//int baseChars16Column[4] = { 0, 64, 16, 80 };
 int baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long lastMillis = 0;
+unsigned long lastMillis2 = 0;
 
 // store error strings in flash to save RAM
-#define error(s) error_P(PSTR(s))
+//#define error(s) error_P(PSTR(s))
+#define error(s) sd.errorHalt_P(PSTR(s))
 
+/*
 void error_P(const char* str) {
   PgmPrint("error: ");
   SerialPrintln_P(str);
@@ -87,18 +94,14 @@ void error_P(const char* str) {
   }
   while(1);
 }
+*/
 
 
 
 #define COMMAND 0xFE
 //#define powerpin 4
 
-#define GPSRATE 4800
-//#define GPSRATE 38400
 
-
-// GPS parser for 406a
-#define BUFFSIZ 90 // plenty big
 //char buffer[BUFFSIZ];
 char *parseptr;
 char buffidx;
@@ -107,7 +110,7 @@ uint32_t latitude, longitude;
 uint8_t groundspeed, trackangle;
 char latdir, longdir;
 char status;
-uint32_t waypoint = 0;
+//uint32_t waypoint = 0;
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
  
 void setup() {
@@ -146,42 +149,10 @@ void setup() {
     delay ( 500 );
     move_to ( 1, 0 );
 
-    // initialize the SD card at SPI_HALF_SPEED to avoid bus errors with
-    // breadboards.  use SPI_FULL_SPEED for better performance.
-    if (!card.init(SPI_HALF_SPEED,9)) {
-        error("card.init failed");
-    }
-  
-    // initialize a FAT volume
-    if (!volume.init(&card)) {
-        error("volume.init failed");
-    }
-  
-    // open the root directory
-    if (!root.openRoot(&volume)) {
-        error("openRoot failed");
-    }
+    Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
+    init_logger();
+    Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
-    // create a new file
-    char name[] = "WRITE00.TXT";
-    for (uint8_t i = 0; i < 100; i++) {
-        name[5] = i/10 + '0';
-        name[6] = i%10 + '0';
-        if (file.open(&root, name, O_CREAT | O_EXCL | O_WRITE)) {
-            break;
-        }
-    }
-    if (!file.isOpen()) {
-        error ("file.create");
-    }
-    lcd.print ( "Log file        " );   
-    Serial.print("Writing to: ");
-    Serial.println(name);
-    // write header
-    file.writeError = 0;
-    file.print("READY....");
-    file.println();  
-    delay ( 500 );
     iterations = 0;
 }
  
@@ -189,7 +160,10 @@ void loop() {
     bool gotGPSData = false;
     iterations++;
 
-    kellyCanbus.fetchRuntimeData();
+    //memset ( buffer, 1, 10  );
+
+
+    //kellyCanbus.fetchRuntimeData();
     gotGPSData = read_gps();
     if ( ( millis() - lastMillis ) >= 1000 ) {
         lastMillis = millis();
@@ -204,34 +178,63 @@ void loop() {
         lcd.print ( kellyCanbus.getTractionPackVoltage(), 3 );
     }
     
-    //Serial.println ( buffer );
-    Serial.print ( year, DEC );
-    Serial.print ( month, DEC );
-    Serial.print ( date, DEC );
-    Serial.print ( "_" );
-    Serial.print ( hour, DEC );
-    Serial.print ( minute, DEC );
-    Serial.print ( second, DEC );
-    Serial.print ( "," );
-    Serial.print ( groundspeed * 1.15077945, 2 );
-    Serial.print ( "," );
-    Serial.print ( kellyCanbus.getMPHFromRPM(), 2 );
-    Serial.print ( "," );
-    Serial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-    Serial.print ( "," );
-    Serial.print ( lat_str );
-    Serial.print ( "," );
-    Serial.print ( lon_str );
-    Serial.print ( "," );
-    Serial.print ( groundspeed, DEC );
-    Serial.print ( "," );
-    Serial.print ( trackangle, DEC );
-    Serial.print ( "," );
+    logLine.begin();
+    logLine.print ( millis(), DEC );
+    logLine.print ( "," );
+    logLine.print ( year, DEC );
+    logLine.print ( month, DEC );
+    logLine.print ( date, DEC );
+    logLine.print ( "_" );
+    logLine.print ( hour, DEC );
+    logLine.print ( minute, DEC );
+    logLine.print ( second, DEC );
+    logLine.print ( "," );
+    logLine.print ( groundspeed * KNOTSTOMPH, 2 );
+    logLine.print ( "," );
+    logLine.print ( kellyCanbus.getMPHFromRPM(), 2 );
+    logLine.print ( "," );
+    logLine.print ( kellyCanbus.getTractionPackVoltage(), 3 );
+    logLine.print ( "," );
+    logLine.print ( lat_str );
+    logLine.print ( "," );
+    logLine.print ( lon_str );
+    logLine.print ( "," );
+    logLine.print ( groundspeed, DEC );
+    logLine.print ( "," );
+    logLine.print ( trackangle, DEC );
+    logLine.print ( "," );
     for ( int i = 0; i < 22; i++ ) {
-        Serial.print ( kellyCanbus.rawData[i], DEC );
-        Serial.print ( "," );
+        logLine.print ( kellyCanbus.rawData[i], DEC );
+        logLine.print ( "," );
     }
-    Serial.println();
+    file.println ( logLine );
+    if ( ( millis() - lastMillis2 ) >= 5000 ) {
+        Serial.println ( "syncing..." );
+        file.sync();
+        lastMillis2 = millis();
+        //while ( 1 );
+    }
+
+    if (digitalRead(CLICK) == 0){  /* Check for Click button */
+        file.println ( "Closing" );
+        file.close();
+        Serial.println("Done");
+        move_to ( 2, 0 );
+        lcd.print("DONE");
+        while ( 1 ) {
+        }
+    }
+
+/*
+12203.8753,W,0.19,75.97,140611,,*2B$GPRMC,072205.000,A,3723.9901,N,
+11614_72844,0.00,0.00,0.000,3723.9890,N,12203.8761,W,0,68,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+
+    if ( iterations > 20000 ) {
+        file.close();
+        delay ( 10000000 );
+    }
+    */
+    //Serial.println( logLine );
    
     //Serial.println ( kellyCanbus.dump() );
  
@@ -406,6 +409,7 @@ void logging(void)
 
 void sd_test(void)
 {
+ /*
  clear_lcd(); 
  lcd.print("SD test"); 
  Serial.println("SD card test");
@@ -443,7 +447,8 @@ void sd_test(void)
  lcd.print("DONE"); 
 
   
- while(1);  /* Don't return */ 
+ while(1); 
+     */
 }
 
 bool read_gps(void) {
@@ -544,6 +549,7 @@ bool read_gps(void) {
       
       
 
+/*
 void gps_test(void){
   uint32_t tmp;
   uint32_t lat;
@@ -708,6 +714,7 @@ void gps_test(void){
 
 
 }
+*/
 
 bool readline(void) {
   char c;
@@ -752,10 +759,64 @@ void clear_lcd(void)
 
 void move_to ( int row, int column ) {
     int commandChar;
-    commandChar = baseChars16Column[row];
+    commandChar = baseChars20Column[row];
     commandChar += column;
         /* set the high 7 bit to 1 per the spec */
     commandChar |= 0x80;
     lcd.print(COMMAND,BYTE);
     lcd.print(commandChar,BYTE);
+}
+
+void init_logger() {
+    // initialize the SD card at SPI_HALF_SPEED to avoid bus errors with
+    // breadboards.  use SPI_FULL_SPEED for better performance.
+    // if SD chip select is not SS, the second argument to init is CS pin number
+    if (sd.init(SPI_HALF_SPEED, CHIP_SELECT)) {
+        Serial.println ( "sd init success" );
+    } else {
+        sd.initErrorHalt();
+    }
+
+        Serial.println ( "Creating filename" );
+    // create a new file
+    char name[] = "LG_00000.TXT";
+    for (int i = 0; i <= 65530; i++) {
+        if ( i == 65530 ) {
+            clear_lcd();
+            move_to ( 0,0 );
+            Serial.println ( "No more filenames!" );
+            lcd.print ( "No more filenames!" );
+            while ( 1 ) {
+            }
+        }
+        name[3] = i/10000 + '0';
+        name[4] = i%10000 / 1000 + '0';
+        name[5] = i%1000 / 100 + '0';
+        name[6] = i%100 / 10 + '0';
+        name[7] = i%10 + '0';
+        Serial.print ( "checking" );
+        Serial.println ( name );
+        if (sd.exists(name)) {
+            continue;
+        }
+        if ( file.open ( name, O_WRITE | O_CREAT ) ) {
+            break;
+        } else {
+            Serial.print ( "Failed opening file: " );
+            Serial.print ( name );
+        }
+    }
+    Serial.print ( "Filename2: " );
+    Serial.println ( name );
+    //file.open ( name );
+    Serial.println ( "PRE_A" );
+    Serial.println ( "A" );
+    if (file.isOpen() ) {
+        Serial.println ( "Open succeeded" );
+        file.write ( "Starting!\n" );
+        file.sync();
+    } else {
+        Serial.println ( "B" );
+        error ("file.open");
+    }
 }

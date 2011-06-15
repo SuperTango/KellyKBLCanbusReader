@@ -28,8 +28,8 @@ SdFat sd;
 //ofstream file;
 SdFile file;
 
-NewSoftSerial lcd = NewSoftSerial(3, 6);
-NewSoftSerial gps = NewSoftSerial(4, 5);
+NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
+NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
 #define COMMAND 0xFE
 #define CLEAR   0x01
 #define LCD_SIZE 16
@@ -69,12 +69,13 @@ unsigned long lastClickMillis = 0;
 /*
  * Vars needed by tinyGPS
  */
-TinyGPS gpsObj;
+TinyGPS gps;
 long lat, lon;
 unsigned long fix_age, speed, course, date, time;
 unsigned long chars;
 float flat, flon, fmph, fcourse;
 int year;
+byte month, day, hour, minute, second, hundredths;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
@@ -84,8 +85,8 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 void setup() {
     uint16_t ret;
     Serial.begin(GPSRATE);
-    lcd.begin(9600);              /* Setup serial LCD and clear the screen */
-    gps.begin(GPSRATE);
+    lcdSerial.begin(9600);              /* Setup serial LCD and clear the screen */
+    gpsSerial.begin(GPSRATE);
     pinMode(LED2, OUTPUT); 
     pinMode(LED3, OUTPUT); 
 
@@ -107,12 +108,12 @@ void setup() {
 
     clear_lcd();
     move_to ( 0, 0 );
-    lcd.print ( "MotoLogger Init" );
+    lcdSerial.print ( "MotoLogger Init" );
     move_to ( 1,0 );
     if(kellyCanbus.init()) {
-        lcd.print("CAN Init ok");
+        lcdSerial.print("CAN Init ok");
     } else {
-        lcd.print("CAN Init failed");
+        lcdSerial.print("CAN Init failed");
     } 
     delay ( 500 );
     move_to ( 1, 0 );
@@ -120,7 +121,7 @@ void setup() {
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
     Serial.print ( "going to init_logger" );
     init_logger();
-    lcd.print ("logger OK         " );
+    lcdSerial.print ("logger OK         " );
     Serial.print ( "back from init_logger" );
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
@@ -131,27 +132,27 @@ void loop() {
     iterations++;
 
     kellyCanbus.fetchRuntimeData();
-    while ( gps.available() ) {
-        if ( gpsObj.encode( gps.read() ) ) {
-            gpsObj.f_get_position(&flat, &flon, &fix_age);
-            fmph = gpsObj.f_speed_mph();
-            gpsObj.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
-            speed = gpsObj.speed();
-            fcourse= gpsObj.f_course();
-            gpsObj.get_datetime(&date, &time, &fix_age);
+    while ( gpsSerial.available() ) {
+        if ( gps.encode( gpsSerial.read() ) ) {
+            gps.f_get_position(&flat, &flon, &fix_age);
+            fmph = gps.f_speed_mph();
+            gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+            speed = gps.speed();
+            fcourse= gps.f_course();
+            gps.get_datetime(&date, &time, &fix_age);
         }
     }
     if ( ( millis() - lastMillis ) >= 1000 ) {
         lastMillis = millis();
         move_to ( 0, 0 );
-        lcd.print ( fmph, 2 );
-        lcd.print ( " " );
-        lcd.print ( kellyCanbus.getMPHFromRPM(), 2 );
-        lcd.print ( " " );
-        lcd.print ( (float)iterations / (float)millis() * (float)1000, 1 );
+        lcdSerial.print ( fmph, 2 );
+        lcdSerial.print ( " " );
+        lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 2 );
+        lcdSerial.print ( " " );
+        lcdSerial.print ( (float)iterations / (float)millis() * (float)1000, 1 );
         move_to ( 1, 0 );
-        lcd.print ( "B+: " );
-        lcd.print ( kellyCanbus.getTractionPackVoltage(), 3 );
+        lcdSerial.print ( "B+: " );
+        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
     }
     
     file.print ( millis(), DEC );
@@ -193,7 +194,7 @@ void loop() {
         file.close();
         Serial.println("Done");
         move_to ( 2, 0 );
-        lcd.print("DONE");
+        lcdSerial.print("DONE");
         while ( 1 ) {
         }
     } else if (digitalRead(UP) == 0) {  /* Check for Click button */
@@ -205,8 +206,8 @@ void loop() {
             }
             Serial.print ( "setting brightness to: " );
             Serial.println ( brightness, DEC );
-            lcd.print ( 0x7C, BYTE );
-            lcd.print ( brightness, BYTE );
+            lcdSerial.print ( 0x7C, BYTE );
+            lcdSerial.print ( brightness, BYTE );
         }
     } else if (digitalRead(DOWN) == 0) {  /* Check for Click button */
         if ( millis() - lastClickMillis > 1000 ) {
@@ -217,8 +218,8 @@ void loop() {
             }
             Serial.print ( "setting brightness to: " );
             Serial.println ( brightness, DEC );
-            lcd.print ( 0x7C, BYTE );
-            lcd.print ( brightness, BYTE );
+            lcdSerial.print ( 0x7C, BYTE );
+            lcdSerial.print ( brightness, BYTE );
         }
     }
 
@@ -233,8 +234,8 @@ void loop() {
 
 void clear_lcd(void)
 {
-    lcd.print(COMMAND,BYTE);
-    lcd.print(CLEAR,BYTE);
+    lcdSerial.print(COMMAND,BYTE);
+    lcdSerial.print(CLEAR,BYTE);
 }  
 
 void move_to ( int row, int column ) {
@@ -243,8 +244,8 @@ void move_to ( int row, int column ) {
     commandChar += column;
         /* set the high 7 bit to 1 per the spec */
     commandChar |= 0x80;
-    lcd.print(COMMAND,BYTE);
-    lcd.print(commandChar,BYTE);
+    lcdSerial.print(COMMAND,BYTE);
+    lcdSerial.print(commandChar,BYTE);
 }
 
 void init_logger() {
@@ -265,7 +266,7 @@ void init_logger() {
             clear_lcd();
             move_to ( 0,0 );
             Serial.println ( "No more filenames!" );
-            lcd.print ( "No more filenames!" );
+            lcdSerial.print ( "No more filenames!" );
             while ( 1 ) {
             }
         }

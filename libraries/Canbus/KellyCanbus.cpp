@@ -92,7 +92,7 @@ void KellyCanbus::getCCP_MONITOR2() {
 }
 
 float KellyCanbus::getMPHFromRPM() {
-    return (float)rpm * 80.296 * 60 / 12 / 5280;
+    return (float)rpm * 80.296 * 60 / 12 / 5280 / 2;
 }
 
 float KellyCanbus::getTractionPackVoltage() {

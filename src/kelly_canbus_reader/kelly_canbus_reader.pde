@@ -18,7 +18,6 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 #include <KellyCanbus.h>
 #include <mcp2515.h>
 #include <stdlib.h>
-#include <PString.h>
 
 
 SdFat sd;
@@ -56,8 +55,6 @@ NewSoftSerial gps = NewSoftSerial(4, 5);
 #define CHIP_SELECT 9
 
 char buffer[BUFFSIZ];  //Data will be temporarily stored to this buffer before being written to the file
-char logLineBuffer[155];
-PString logLine (logLineBuffer, sizeof(logLineBuffer));
 char lat_str[14];
 char lon_str[14];
 
@@ -183,36 +180,35 @@ void loop() {
         lcd.print ( kellyCanbus.getTractionPackVoltage(), 3 );
     }
     
-    logLine.begin();
-    logLine.print ( millis(), DEC );
-    logLine.print ( "," );
-    logLine.print ( year, DEC );
-    logLine.print ( month, DEC );
-    logLine.print ( date, DEC );
-    logLine.print ( "_" );
-    logLine.print ( hour, DEC );
-    logLine.print ( minute, DEC );
-    logLine.print ( second, DEC );
-    logLine.print ( "," );
-    logLine.print ( groundspeed * KNOTSTOMPH, 2 );
-    logLine.print ( "," );
-    logLine.print ( kellyCanbus.getMPHFromRPM(), 2 );
-    logLine.print ( "," );
-    logLine.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-    logLine.print ( "," );
-    logLine.print ( lat_str );
-    logLine.print ( "," );
-    logLine.print ( lon_str );
-    logLine.print ( "," );
-    logLine.print ( groundspeed, DEC );
-    logLine.print ( "," );
-    logLine.print ( trackangle, DEC );
-    logLine.print ( "," );
+    file.print ( millis(), DEC );
+    file.print ( "," );
+    file.print ( year, DEC );
+    file.print ( month, DEC );
+    file.print ( date, DEC );
+    file.print ( "_" );
+    file.print ( hour, DEC );
+    file.print ( minute, DEC );
+    file.print ( second, DEC );
+    file.print ( "," );
+    file.print ( groundspeed * KNOTSTOMPH, 2 );
+    file.print ( "," );
+    file.print ( kellyCanbus.getMPHFromRPM(), 2 );
+    file.print ( "," );
+    file.print ( kellyCanbus.getTractionPackVoltage(), 3 );
+    file.print ( "," );
+    file.print ( lat_str );
+    file.print ( "," );
+    file.print ( lon_str );
+    file.print ( "," );
+    file.print ( groundspeed, DEC );
+    file.print ( "," );
+    file.print ( trackangle, DEC );
+    file.print ( "," );
     for ( int i = 0; i < 22; i++ ) {
-        logLine.print ( kellyCanbus.rawData[i], DEC );
-        logLine.print ( "," );
+        file.print ( kellyCanbus.rawData[i], DEC );
+        file.print ( "," );
     }
-    file.println ( logLine );
+    file.println();
     if ( ( millis() - lastMillis2 ) >= 5000 ) {
         Serial.println ( "syncing..." );
         file.sync();

@@ -1,0 +1,3 @@
+The Kelly Canbus Logger will log data using the Arduino with Canbus 
+shield (available from skpang.co.uk or sparkfun.com) along with 
+a GPS.

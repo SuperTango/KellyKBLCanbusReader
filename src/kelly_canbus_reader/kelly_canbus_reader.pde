@@ -56,7 +56,7 @@ NewSoftSerial gps = NewSoftSerial(4, 5);
 #define CHIP_SELECT 9
 
 char buffer[BUFFSIZ];  //Data will be temporarily stored to this buffer before being written to the file
-char logLineBuffer[200];
+char logLineBuffer[155];
 PString logLine (logLineBuffer, sizeof(logLineBuffer));
 char lat_str[14];
 char lon_str[14];
@@ -154,7 +154,10 @@ void setup() {
     move_to ( 1, 0 );
 
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
+    Serial.print ( "going to init_logger" );
     init_logger();
+    lcd.print ("logger OK         " );
+    Serial.print ( "back from init_logger" );
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
     iterations = 0;
@@ -165,9 +168,7 @@ void loop() {
     iterations++;
 
     //memset ( buffer, 1, 10  );
-
-
-    //kellyCanbus.fetchRuntimeData();
+    kellyCanbus.fetchRuntimeData();
     gotGPSData = read_gps();
     if ( ( millis() - lastMillis ) >= 1000 ) {
         lastMillis = millis();
@@ -255,7 +256,7 @@ void loop() {
 
 /*
 12203.8753,W,0.19,75.97,140611,,*2B$GPRMC,072205.000,A,3723.9901,N,
-11614_72844,0.00,0.00,0.000,3723.9890,N,12203.8761,W,0,68,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+11614_72844,0.00,0.00,0.000,3723.9890,N,12203.8761,W,0,68,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,
 
     if ( iterations > 20000 ) {
         file.close();

@@ -14,6 +14,7 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 
 #include <SdFat.h>        /* Library from Adafruit.com */
 #include <SdFatUtil.h>
+#include <TinyGPS.h>
 #include <NewSoftSerial.h>
 #include <KellyCanbus.h>
 #include <mcp2515.h>
@@ -43,9 +44,6 @@ NewSoftSerial gps = NewSoftSerial(4, 5);
 #define GPSRATE 4800
 //#define GPSRATE 38400
 
-// GPS parser for 406a
-#define BUFFSIZ 90 // plenty big
-
 /* Define Joystick connection */
 #define UP     A1
 #define RIGHT  A2
@@ -53,10 +51,6 @@ NewSoftSerial gps = NewSoftSerial(4, 5);
 #define CLICK  A4
 #define LEFT   3
 #define CHIP_SELECT 9
-
-char buffer[BUFFSIZ];  //Data will be temporarily stored to this buffer before being written to the file
-char lat_str[14];
-char lon_str[14];
 
 int LED2 = 8;
 int LED3 = 7;
@@ -72,17 +66,19 @@ unsigned long lastMillis = 0;
 unsigned long lastMillis2 = 0;
 unsigned long lastClickMillis = 0;
 
+/*
+ * Vars needed by tinyGPS
+ */
+TinyGPS gpsObj;
+long lat, lon;
+unsigned long fix_age, speed, course, date, time;
+unsigned long chars;
+float flat, flon, fmph, fcourse;
+int year;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
 
-char *parseptr;
-char buffidx;
-uint8_t hour, minute, second, year, month, date;
-uint32_t latitude, longitude;
-uint8_t groundspeed, trackangle;
-char latdir, longdir;
-char status;
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
  
 void setup() {
@@ -132,16 +128,23 @@ void setup() {
 }
  
 void loop() {
-    bool gotGPSData = false;
     iterations++;
 
-    //memset ( buffer, 1, 10  );
     kellyCanbus.fetchRuntimeData();
-    gotGPSData = read_gps();
+    while ( gps.available() ) {
+        if ( gpsObj.encode( gps.read() ) ) {
+            gpsObj.f_get_position(&flat, &flon, &fix_age);
+            fmph = gpsObj.f_speed_mph();
+            gpsObj.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+            speed = gpsObj.speed();
+            fcourse= gpsObj.f_course();
+            gpsObj.get_datetime(&date, &time, &fix_age);
+        }
+    }
     if ( ( millis() - lastMillis ) >= 1000 ) {
         lastMillis = millis();
         move_to ( 0, 0 );
-        lcd.print ( groundspeed * KNOTSTOMPH, 2 );
+        lcd.print ( fmph, 2 );
         lcd.print ( " " );
         lcd.print ( kellyCanbus.getMPHFromRPM(), 2 );
         lcd.print ( " " );
@@ -153,27 +156,25 @@ void loop() {
     
     file.print ( millis(), DEC );
     file.print ( "," );
-    file.print ( year, DEC );
-    file.print ( month, DEC );
-    file.print ( date, DEC );
-    file.print ( "_" );
-    file.print ( hour, DEC );
-    file.print ( minute, DEC );
-    file.print ( second, DEC );
+    file.print ( fix_age, DEC );
     file.print ( "," );
-    file.print ( groundspeed * KNOTSTOMPH, 2 );
+    file.print ( date, DEC );
+    file.print ( "," );
+    file.print ( time, DEC );
+    file.print ( "," );
+    file.print ( fmph, 2 );
     file.print ( "," );
     file.print ( kellyCanbus.getMPHFromRPM(), 2 );
     file.print ( "," );
     file.print ( kellyCanbus.getTractionPackVoltage(), 3 );
     file.print ( "," );
-    file.print ( lat_str );
+    file.print ( flat, 3 );
     file.print ( "," );
-    file.print ( lon_str );
+    file.print ( flon, 3 );
     file.print ( "," );
-    file.print ( groundspeed, DEC );
+    file.print ( speed, DEC );
     file.print ( "," );
-    file.print ( trackangle, DEC );
+    file.print ( fcourse, 2 );
     file.print ( "," );
     for ( int i = 0; i < 22; i++ ) {
         file.print ( kellyCanbus.rawData[i], DEC );
@@ -228,137 +229,6 @@ void loop() {
  * Current Log Line:
  * 11614_72844,0.00,0.00,0.000,3723.9890,N,12203.8761,W,0,68,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,xxx,
  */
-}
-
-
-bool read_gps(void) {
-    uint32_t tmp;
-    unsigned char i;
-    unsigned char exit = 0;
-
-    while( exit == 0) { 
-        
-            /*
-             * bail out if the non-blocking readline doesn't have any data
-             */
-        if ( ! readline() ) {
-            return false;
-        }
-     
-              // check if $GPRMC (global positioning fixed data)
-        if (strncmp(buffer, "$GPRMC",6) == 0) {
-            digitalWrite(LED2, HIGH);
-            
-            // hhmmss time data
-            parseptr = buffer+7;
-            tmp = parsedecimal(parseptr); 
-            hour = tmp / 10000;
-            minute = (tmp / 100) % 100;
-            second = tmp % 100;
-            
-            parseptr = strchr(parseptr, ',') + 1;
-            status = parseptr[0];
-            parseptr += 2;
-              
-            for(i=0;i<11;i++)
-            {
-                lat_str[i] = parseptr[i];
-            }
-            lat_str[12] = 0;
-            // Serial.println(" ");
-            // Serial.println(lat_str);
-           
-            // grab latitude & long data
-            latitude = parsedecimal(parseptr);
-            if (latitude != 0) {
-                latitude *= 10000;
-                parseptr = strchr(parseptr, '.')+1;
-                latitude += parsedecimal(parseptr);
-            }
-            parseptr = strchr(parseptr, ',') + 1;
-            // read latitude N/S data
-            if (parseptr[0] != ',') {
-              latdir = parseptr[0];
-            }
-            
-            // longitude
-            parseptr = strchr(parseptr, ',')+1;
-          
-            for(i=0;i<12;i++)
-            {
-              lon_str[i] = parseptr[i];
-            }
-            lon_str[13] = 0;
-            
-            //Serial.println(lon_str);
-       
-            longitude = parsedecimal(parseptr);
-            if (longitude != 0) {
-                longitude *= 10000;
-                parseptr = strchr(parseptr, '.')+1;
-                longitude += parsedecimal(parseptr);
-            }
-            parseptr = strchr(parseptr, ',')+1;
-            // read longitude E/W data
-            if (parseptr[0] != ',') {
-                longdir = parseptr[0];
-            }
-        
-            // groundspeed
-            parseptr = strchr(parseptr, ',')+1;
-            groundspeed = parsedecimal(parseptr);
-        
-            // track angle
-            parseptr = strchr(parseptr, ',')+1;
-            trackangle = parsedecimal(parseptr);
-        
-            // date
-            parseptr = strchr(parseptr, ',')+1;
-            tmp = parsedecimal(parseptr); 
-            date = tmp / 10000;
-            month = (tmp / 100) % 100;
-            year = tmp % 100;
-            
-            digitalWrite(LED2, LOW);
-            exit = 1;
-        }
-    }
-    return true;
-}
-
-bool readline(void) {
-  char c;
-  int available;
-  
-  buffidx = 0; // start at begninning
-  if ( ! gps.available() ) {
-      return false;
-  }
-  while (1) {
-      c=gps.read();
-      if (c == -1)
-        continue;
-      if (c == '\r')
-        continue;
-      if ((buffidx == BUFFSIZ-1) || (c == '\n')) {
-        buffer[buffidx] = 0;
-        return true;
-      }
-      buffer[buffidx++]= c;
-  }
-}
-
-uint32_t parsedecimal(char *str) {
-  uint32_t d = 0;
-  
-  while (str[0] != 0) {
-   if ((str[0] > '9') || (str[0] < '0'))
-     return d;
-   d *= 10;
-   d += str[0] - '0';
-   str++;
-  }
-  return d;
 }
 
 void clear_lcd(void)

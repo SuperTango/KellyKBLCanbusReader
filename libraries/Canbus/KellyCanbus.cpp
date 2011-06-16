@@ -21,30 +21,26 @@ uint8_t CCP_A2D_BATCH_READ2_DATA[1] = { 0x1a };
 uint8_t CCP_MONITOR1_DATA[1] = { 0x33 };
 uint8_t CCP_MONITOR2_DATA[1] = { 0x37 };
 
-#define CCP_A2D_BATCH_READ1_OFFSET 0
-#define CCP_A2D_BATCH_READ2_OFFSET 5
-#define CCP_MONITOR1_OFFSET 11
-#define CCP_MONITOR2_OFFSET 17
-
-unsigned int count = 0;
 uint8_t responseData[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
 
 KellyCanbus::KellyCanbus(float divider) {
     this->divider = divider;
+    this->count = 0;
 }
 
 char KellyCanbus::init() {
     return mcp2515_init(CANSPEED_1000);
 }
 
-void KellyCanbus::fetchRuntimeData() {
+void KellyCanbus::fetchAllRuntimeData() {
     getCCP_A2D_BATCH_READ1();
     getCCP_A2D_BATCH_READ2();
     getCCP_MONITOR1();
     getCCP_MONITOR2();
-    count++;
 
+    iAvg = (float)iCumulative / count;
+    vAvg = (float)vCumulative / count;
+    wAvg = iAvg * vAvg;
 }
 
 void KellyCanbus::getCCP_A2D_BATCH_READ1() {
@@ -59,15 +55,28 @@ void KellyCanbus::getCCP_A2D_BATCH_READ1() {
 }
 
 void KellyCanbus::getCCP_A2D_BATCH_READ2() {
+    uint8_t vMax = 0;
+    uint8_t iMax = 0;
     memset ( responseData, 0, 8 );
     bool status = canRequest ( CCP_A2D_BATCH_READ2_DATA, responseData );
     memcpy ( rawData + CCP_A2D_BATCH_READ2_OFFSET, responseData, 6 );
-    iA[count % MOTOR_SAMPLES] = responseData[0];
-    iB[count % MOTOR_SAMPLES] = responseData[1];
-    iC[count % MOTOR_SAMPLES] = responseData[2];
-    vA[count % MOTOR_SAMPLES] = responseData[3];
-    vB[count % MOTOR_SAMPLES] = responseData[4];
-    vC[count % MOTOR_SAMPLES] = responseData[5];
+
+    for ( int i = 0; i < 3; i++ ) {
+        if ( responseData[i] > iMax ) {
+            iMax = responseData[i];
+        }
+        if ( responseData[i+3] > vMax ) {
+            vMax = responseData[i+3];
+        }
+    }
+        // Deal with weird situation where current is 0, 1, or 2, and
+        // voltage between 62 and 70 or so.  if so, set vMax to 0.
+    if ( ( iMax <= 2 ) && ( ( vMax >=62 ) && ( vMax <= 69 ) ) ) {
+        vMax = 0;
+    }
+    count++;
+    iCumulative += iMax;
+    vCumulative += vMax;
 }
 
 void KellyCanbus::getCCP_MONITOR1() {
@@ -99,24 +108,10 @@ float KellyCanbus::getTractionPackVoltage() {
     return (float)tractionPackVoltageRaw / divider;
 }
 
-MotorInfo * KellyCanbus::getMotorInfo(){
-    int iASum, iBSum, iCSum, vASum, vBSum, vCSum = 0;
-    byte divider = ( count > MOTOR_SAMPLES ) ? MOTOR_SAMPLES : count;
-    for ( int i = 0; i < MOTOR_SAMPLES; i++ ) {
-        iASum += iA[i];
-        iBSum += iB[i];
-        iCSum += iC[i];
-        vASum += vA[i];
-        vBSum += vB[i];
-        vCSum += vC[i];
-    }
-    motorInfo.iAAvg = (float)iASum / (float)divider;
-    motorInfo.iBAvg = (float)iBSum / (float)divider;
-    motorInfo.iCAvg = (float)iCSum / (float)divider;
-    motorInfo.vAAvg = (float)vASum / (float)divider;
-    motorInfo.vBAvg = (float)vBSum / (float)divider;
-    motorInfo.vCAvg = (float)vCSum / (float)divider;
-    return &motorInfo;
+void KellyCanbus::resetMotorInfo() {
+    iCumulative = 0;
+    vCumulative = 0;
+    count = 0;
 }
 
 bool KellyCanbus::canRequest(uint8_t requestData[8], uint8_t *responseData) {

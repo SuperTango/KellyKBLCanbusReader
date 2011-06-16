@@ -58,7 +58,7 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 int LED2 = 8;
 int LED3 = 7;
 
-int iterations;
+uint32_t iterations;
 
 int brightness = 129;
 
@@ -90,7 +90,6 @@ float whPerMile;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
-
  
 void setup() {
     uint16_t ret;
@@ -136,6 +135,41 @@ void setup() {
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
     iterations = 0;
+
+/*
+        file.print ( "currentMillis" );
+        file.print ( "," );
+        file.print ( "tDiffMillis" );
+        file.print ( "," );
+        file.print ( "date" );
+        file.print ( "," );
+        file.print ( "time" );
+        file.print ( "," );
+        file.print ( "mph GPS" );
+        file.print ( "," );
+        file.print ( "mph from RPM" );
+        file.print ( "," );
+        file.print ( "B+" );
+        file.print ( "," );
+        file.print ( "lat" );
+        file.print ( "," );
+        file.print ( "lon" );
+        file.print ( "," );
+        file.print ( "fcourse" );
+        file.print ( "," );
+        file.print ( "distance" );
+        file.print ( "," );
+        file.print ( "kellyCanbus.iAvg" );
+        file.print ( "," );
+        file.print ( "kellyCanbus.vAvg" );
+        file.print ( "," );
+        file.print ( "kellyCanbus.wAvg" );
+        file.print ( "," );
+        file.print ( "Wh/mi" );
+        file.print ( "," );
+        file.print ( "m/kWh" );
+        file.print ( "," );
+        */
 }
  
 void loop() {
@@ -164,30 +198,39 @@ void loop() {
          */
     currentMillis = millis();
     if ( ( new_gps_data ) || ( currentMillis - lastFullReadMillis > 1000 ) ) {
-        //kellyCanbus.fetchAllRuntimeData();
+        kellyCanbus.fetchAllRuntimeData();
+        tDiffMillis = currentMillis - lastFullReadMillis;
         if ( distance > 0 ) {
-            tDiffMillis = currentMillis - lastFullReadMillis;
             whPerMile = ( kellyCanbus.wAvg * tDiffMillis / ( 3600 * 1000 ) ) / distance;
             milesPerKwh = distance / ( kellyCanbus.wAvg * tDiffMillis / ( 3600 * 1000 ) );
+        } else {
+            whPerMile = 0;
+            milesPerKwh = 0;
         }
+
+        clear_lcd();
         move_to ( 0, 0 );
         lcdSerial.print ( fmph, 2 );
         lcdSerial.print ( " " );
         lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 2 );
         lcdSerial.print ( " " );
-        lcdSerial.print ( (float)iterations / (float)currentMillis * (float)1000, 1 );
+        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
+        lcdSerial.print ( "C" );
         move_to ( 1, 0 );
         lcdSerial.print ( "B+: " );
         lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
         move_to ( 2, 0 );
-        lcdSerial.print ( "wh/m: " );
+        lcdSerial.print ( "Wh/m: " );
         lcdSerial.print ( whPerMile, 2 );
+        move_to ( 3, 0 );
         lcdSerial.print ( "m/kWh: " );
         lcdSerial.print ( milesPerKwh, 2 );
+        lcdSerial.print ( " i " );
+        lcdSerial.print ( kellyCanbus.count, DEC );
 
         file.print ( currentMillis, DEC );
         file.print ( "," );
-        file.print ( fix_age, DEC );
+        file.print ( tDiffMillis, DEC );
         file.print ( "," );
         file.print ( date, DEC );
         file.print ( "," );
@@ -202,8 +245,6 @@ void loop() {
         file.print ( flat, 5 );
         file.print ( "," );
         file.print ( flon, 5 );
-        file.print ( "," );
-        file.print ( speed, DEC );
         file.print ( "," );
         file.print ( fcourse, 2 );
         file.print ( "," );
@@ -229,12 +270,13 @@ void loop() {
             // reset distance in case we do another round before getting another
             // set of GPS data, we don't re-calcualte wh/mi with a bogus distance.
         distance = 0;
+        kellyCanbus.resetMotorInfo();
 
     } else {
-        //kellyCanbus.getCCP_A2D_BATCH_READ2();
+        kellyCanbus.getCCP_A2D_BATCH_READ2();
     }
         /*
-         * always write the raw current and voltage info
+         * always write the raw current and voltage info to the raw file.
          */
     rawFile.print ( currentMillis, DEC );
     rawFile.print ( "," );
@@ -245,6 +287,8 @@ void loop() {
     rawFile.println();
 
     if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
+        Serial.print ( "count: " );
+        Serial.println ( kellyCanbus.count, DEC );
         Serial.println ( "syncing..." );
         file.sync();
         rawFile.sync();

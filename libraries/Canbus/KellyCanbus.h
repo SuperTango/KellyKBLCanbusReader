@@ -17,6 +17,7 @@
 #define CCP_A2D_BATCH_READ2_OFFSET 5
 #define CCP_MONITOR1_OFFSET 11
 #define CCP_MONITOR2_OFFSET 17
+#define MOTOR_TEMP CCP_MONITOR1_OFFSET + 2
 
 class KellyCanbus
 {
@@ -41,7 +42,6 @@ class KellyCanbus
         void resetMotorInfo();
         uint8_t count;
     private:
-        char model[8];
         float divider;
         //uint8_t brakeAnalogRaw;
         //uint8_t throttleAnalogRaw;

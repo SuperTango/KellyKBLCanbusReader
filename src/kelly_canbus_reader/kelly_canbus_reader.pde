@@ -380,20 +380,5 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
   // return time using FAT_TIME macro to format fields
   *time = FAT_TIME(hour, minute, second );
-
-  Serial.print ( "dateTime: " );
-  Serial.print ( year, DEC );
-  Serial.print ( "/" );
-  Serial.print ( month, DEC );
-  Serial.print ( "/" );
-  Serial.print ( day, DEC );
-  Serial.print ( " " );
-
-  Serial.print ( hour, DEC );
-  Serial.print ( ":" );
-  Serial.print ( minute, DEC );
-  Serial.print ( ":" );
-  Serial.print ( second, DEC );
-  Serial.println ();
 }
 

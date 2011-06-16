@@ -305,9 +305,24 @@ void init_logger() {
 
 void dateTime(uint16_t* date, uint16_t* time) {
   // return date using FAT_DATE macro to format fields
-  *date = FAT_DATE((uint16_t)(year+2000), (uint16_t)month, (uint16_t)day );
+  *date = FAT_DATE(year, month, day );
 
   // return time using FAT_TIME macro to format fields
-  *time = FAT_TIME((uint16_t)hour, (uint16_t)minute, (uint16_t)second );
+  *time = FAT_TIME(hour, minute, second );
+
+  Serial.print ( "dateTime: " );
+  Serial.print ( year, DEC );
+  Serial.print ( "/" );
+  Serial.print ( month, DEC );
+  Serial.print ( "/" );
+  Serial.print ( day, DEC );
+  Serial.print ( " " );
+
+  Serial.print ( hour, DEC );
+  Serial.print ( ":" );
+  Serial.print ( minute, DEC );
+  Serial.print ( ":" );
+  Serial.print ( second, DEC );
+  Serial.println ();
 }
 

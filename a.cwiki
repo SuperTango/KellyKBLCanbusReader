@@ -1,0 +1,24 @@
+Hey folks,
+
+So, i've got my arduino talking to my Kelly KBL brushless controller via CAN.  It's super cool now that I can get a bunch of information back from the controller such as B+ voltage, motor RPM, and in particular the Voltage and Current being sent to the motor.  Unfortunately, I don't think i'm interpreting the (voltage and current to motor) data properly.   
+
+in the end, i'm trying to figure out:
+[LIST]
+[*] what the motor side voltage and current,
+[*] how that relates to the battery side voltage and current
+[*] Eventually, things like wh, wh/mi, etc.
+[/LIST]
+
+Since i'm using Mark's brushless dc hub motor, it uses three phases to drive the motor. The controller returns the current and voltage to each of the three phase wires (Ia, Ib, Ic, Va, Vb, Vc). 
+
+When doing a graph of the voltages and currents of the three phase wires over a short time interval, i see something that looks like this:
+
+[IMG]http://electriceptor.files.wordpress.com/2011/06/screen-shot-2011-06-16-at-3-38-58-pm.png[/IMG]
+
+This seems reasonable to me.  What i'm really looking for is the current and voltage overall (not the three specific wires).  So, what i figured i'd do is take the maximum of each of the three phase wires.  When i do that, it starts to look like this:
+
+[IMG]http://electriceptor.files.wordpress.com/2011/06/screen-shot-2011-06-16-at-3-45-50-pm.png[/IMG]
+
+My first question is: For Current or voltage, Is the assumption that i can use the maximum of the three phase wire values correct?
+
+Secondly, the information i'm getting from the controller shows that the voltage being sent to the motor on a phase wire can be greater than the battery side voltage.  For example, a reading that i took when going about 58mph shows that the battery side voltage is around 113V, but the voltage on the phase wires is 160V.  

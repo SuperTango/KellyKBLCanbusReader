@@ -43,6 +43,8 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define KNOTSTOMPH 1.15077945
 #define METERSTOMILES 0.000621371192
 
+#define COMMA COMMA
+
 
 #define GPSRATE 4800
 //#define GPSRATE 38400
@@ -118,58 +120,25 @@ void setup() {
     clear_lcd();
     move_to ( 0, 0 );
     lcdSerial.print ( "MotoLogger Init" );
-    move_to ( 1,0 );
+    move_to ( 2, 0 );
+    lcdSerial.print ( "Free Ram: " );
+    lcdSerial.print ( FreeRam() );
+    move_to ( 1, 0 );
+    lcdSerial.print ( "CAN Init " );
     if(kellyCanbus.init()) {
-        lcdSerial.print("CAN Init ok");
+        lcdSerial.print("OK");
     } else {
-        lcdSerial.print("CAN Init failed");
+        lcdSerial.print("Failed");
     } 
     delay ( 500 );
     move_to ( 1, 0 );
 
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
-    Serial.print ( "going to init_logger" );
     init_logger();
     lcdSerial.print ("logger OK         " );
-    Serial.print ( "back from init_logger" );
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
     iterations = 0;
-
-/*
-        file.print ( "currentMillis" );
-        file.print ( "," );
-        file.print ( "tDiffMillis" );
-        file.print ( "," );
-        file.print ( "date" );
-        file.print ( "," );
-        file.print ( "time" );
-        file.print ( "," );
-        file.print ( "mph GPS" );
-        file.print ( "," );
-        file.print ( "mph from RPM" );
-        file.print ( "," );
-        file.print ( "B+" );
-        file.print ( "," );
-        file.print ( "lat" );
-        file.print ( "," );
-        file.print ( "lon" );
-        file.print ( "," );
-        file.print ( "fcourse" );
-        file.print ( "," );
-        file.print ( "distance" );
-        file.print ( "," );
-        file.print ( "kellyCanbus.iAvg" );
-        file.print ( "," );
-        file.print ( "kellyCanbus.vAvg" );
-        file.print ( "," );
-        file.print ( "kellyCanbus.wAvg" );
-        file.print ( "," );
-        file.print ( "Wh/mi" );
-        file.print ( "," );
-        file.print ( "m/kWh" );
-        file.print ( "," );
-        */
 }
  
 void loop() {
@@ -229,41 +198,41 @@ void loop() {
         lcdSerial.print ( kellyCanbus.count, DEC );
 
         file.print ( currentMillis, DEC );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( tDiffMillis, DEC );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( date, DEC );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( time, DEC );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( fmph, 2 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( kellyCanbus.getMPHFromRPM(), 2 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( flat, 5 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( flon, 5 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( fcourse, 2 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( distance, 5 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( kellyCanbus.iAvg, 4 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( kellyCanbus.vAvg, 4 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( kellyCanbus.wAvg, 4 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( whPerMile, 5 );
-        file.print ( "," );
+        file.print ( COMMA );
         file.print ( milesPerKwh, 5 );
-        file.print ( "," );
+        file.print ( COMMA );
 
         for ( int i = 0; i < 22; i++ ) {
             file.print ( kellyCanbus.rawData[i], DEC );
-            file.print ( "," );
+            file.print ( COMMA );
         }
         file.println();
         lastFullReadMillis = currentMillis;
@@ -279,10 +248,10 @@ void loop() {
          * always write the raw current and voltage info to the raw file.
          */
     rawFile.print ( currentMillis, DEC );
-    rawFile.print ( "," );
+    rawFile.print ( COMMA );
     for ( int i = CCP_A2D_BATCH_READ2_OFFSET; i < CCP_A2D_BATCH_READ2_OFFSET + 6; i++ ) {
         rawFile.print ( kellyCanbus.rawData[i], DEC );
-        rawFile.print ( "," );
+        rawFile.print ( COMMA );
     }
     rawFile.println();
 

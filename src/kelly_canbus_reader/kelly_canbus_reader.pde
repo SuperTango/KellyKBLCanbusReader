@@ -34,16 +34,12 @@ NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define COMMAND 0xFE
 #define CLEAR   0x01
-#define LCD_SIZE 16
-#define LINE0   0x80
-#define LINE1   0xC0
-#define LINE2   0x94
-#define LINE3   0xd4
 
 #define KNOTSTOMPH 1.15077945
 #define METERSTOMILES 0.000621371192
+#define MILLISPERHOUR 3600000
 
-#define COMMA COMMA
+#define COMMA ","
 
 
 #define GPSRATE 4800
@@ -116,6 +112,8 @@ void setup() {
   
     Serial.begin(115200);
     Serial.println("Kelly KBLI/HP Logger");  /* For debug use */
+    Serial.print ( "Free Ram: " );
+    Serial.println ( FreeRam() );
 
     clear_lcd();
     move_to ( 0, 0 );
@@ -133,7 +131,6 @@ void setup() {
     delay ( 500 );
     move_to ( 1, 0 );
 
-    Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
     init_logger();
     lcdSerial.print ("logger OK         " );
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
@@ -177,7 +174,6 @@ void loop() {
             milesPerKwh = 0;
         }
 
-        clear_lcd();
         move_to ( 0, 0 );
         lcdSerial.print ( fmph, 2 );
         lcdSerial.print ( " " );
@@ -191,6 +187,7 @@ void loop() {
         move_to ( 2, 0 );
         lcdSerial.print ( "Wh/m: " );
         lcdSerial.print ( whPerMile, 2 );
+        lcdSerial.print ( "   " );
         move_to ( 3, 0 );
         lcdSerial.print ( "m/kWh: " );
         lcdSerial.print ( milesPerKwh, 2 );
@@ -280,7 +277,7 @@ void loop() {
             if ( brightness > 157 ) {
                 brightness = 157;
             }
-            Serial.print ( "setting brightness to: " );
+            Serial.print ( "bright: " );
             Serial.println ( brightness, DEC );
             lcdSerial.print ( 0x7C, BYTE );
             lcdSerial.print ( brightness, BYTE );
@@ -292,7 +289,7 @@ void loop() {
             if ( brightness < 128 ) {
                 brightness = 128;
             }
-            Serial.print ( "setting brightness to: " );
+            Serial.print ( "bright: " );
             Serial.println ( brightness, DEC );
             lcdSerial.print ( 0x7C, BYTE );
             lcdSerial.print ( brightness, BYTE );

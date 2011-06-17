@@ -167,8 +167,8 @@ void loop() {
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;
         if ( distance > 0 ) {
-            whPerMile = ( kellyCanbus.wAvg * tDiffMillis / ( 3600 * 1000 ) ) / distance;
-            milesPerKwh = distance / ( kellyCanbus.wAvg * tDiffMillis / ( 3600 * 1000 ) );
+            whPerMile = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance;
+            milesPerKwh = distance / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
         } else {
             whPerMile = 0;
             milesPerKwh = 0;

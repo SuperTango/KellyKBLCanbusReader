@@ -38,6 +38,7 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define KNOTSTOMPH 1.15077945
 #define METERSTOMILES 0.000621371192
 #define MILLISPERHOUR 3600000
+#define BLANK_LINE "                    "
 
 #define COMMA ","
 
@@ -74,7 +75,7 @@ unsigned long tDiffMillis;
  */
 TinyGPS gps;
 long lat, lon;
-unsigned long fix_age, speed, course, date, time;
+unsigned long fix_age, course, date, time;
 unsigned long chars;
 float flat, flon, fmph, fcourse;
 float prev_flat, prev_flon;
@@ -136,6 +137,7 @@ void setup() {
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
     iterations = 0;
+    clear_lcd();
 }
  
 void loop() {
@@ -146,8 +148,7 @@ void loop() {
             gps.f_get_position(&flat, &flon, &fix_age);
             fmph = gps.f_speed_mph();
             gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
-            speed = gps.speed();
-            fcourse= gps.f_course();
+            fcourse = gps.f_course();
             gps.get_datetime(&date, &time, &fix_age);
             if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
               distance = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
@@ -391,4 +392,3 @@ void dateTime(uint16_t* date, uint16_t* time) {
   // return time using FAT_TIME macro to format fields
   *time = FAT_TIME(hour, minute, second );
 }
-

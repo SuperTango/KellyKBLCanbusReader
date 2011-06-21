@@ -82,7 +82,7 @@ float prev_flat, prev_flon;
 float distance;
 int year;
 uint8_t month, day, hour, minute, second, hundredths;
-bool new_gps_data;
+bool new_gps_data = false;
 
 float milesPerKwh;
 float whPerMile;
@@ -143,6 +143,7 @@ void setup() {
 void loop() {
     iterations++;
 
+    currentMillis = millis();
     while ( gpsSerial.available() ) {
         if ( new_gps_data = gps.encode( gpsSerial.read() ) ) {
             gps.f_get_position(&flat, &flon, &fix_age);
@@ -155,6 +156,7 @@ void loop() {
               prev_flat = flat;
               prev_flon = flon;
             }
+            break;
         }
     }
     
@@ -163,7 +165,6 @@ void loop() {
          * update, perform the full update which includes reading all data,
          * updating the LCD, and writing a record to the primary file.
          */
-    currentMillis = millis();
     if ( ( new_gps_data ) || ( currentMillis - lastFullReadMillis > 1000 ) ) {
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;

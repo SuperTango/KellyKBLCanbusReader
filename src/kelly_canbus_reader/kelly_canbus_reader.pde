@@ -87,6 +87,19 @@ bool new_gps_data = false;
 float milesPerKwh;
 float whPerMile;
 
+
+#define vOutPin A0
+#define vInPin  A1
+//int vInReading;
+int vOutReading;
+//float vIn;
+#define vIn 5.0
+float vOut;
+#define Z1 1000.0
+float z2;
+float c;
+//float f;
+
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
  
@@ -115,6 +128,8 @@ void setup() {
     Serial.println("Kelly KBLI/HP Logger");  /* For debug use */
     Serial.print ( "Free Ram: " );
     Serial.println ( FreeRam() );
+    
+    analogReference(DEFAULT);
 
     clear_lcd();
     move_to ( 0, 0 );
@@ -176,13 +191,19 @@ void loop() {
             milesPerKwh = 0;
         }
 
+
+        //vInReading = analogRead(vInPin);
+        vOutReading = analogRead(vOutPin);
+        //vIn = 5.0 * (float)vInReading / 1024.0;
+        vOut = vIn / 1024.0 * (float)vOutReading;
+        z2 = ( -1 * vOut * Z1 ) / ( vOut - vIn );
+        c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
+        //f = c * 9 / 5 + 32;
+
         move_to ( 0, 0 );
         lcdSerial.print ( fmph, 2 );
         lcdSerial.print ( " " );
         lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 2 );
-        lcdSerial.print ( " " );
-        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
-        lcdSerial.print ( "C" );
         move_to ( 1, 0 );
         lcdSerial.print ( "B+: " );
         lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
@@ -191,9 +212,12 @@ void loop() {
         lcdSerial.print ( whPerMile, 2 );
         lcdSerial.print ( "   " );
         move_to ( 3, 0 );
-        lcdSerial.print ( "m/kWh: " );
-        lcdSerial.print ( milesPerKwh, 2 );
-        lcdSerial.print ( " i " );
+        //lcdSerial.print ( "m/kWh: " );
+        //lcdSerial.print ( milesPerKwh, 2 );
+        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
+        lcdSerial.print ( "/" );
+        lcdSerial.print ( c, 1 );
+        lcdSerial.print ( "C, i " );
         lcdSerial.print ( kellyCanbus.count, DEC );
 
         file.print ( currentMillis, DEC );
@@ -227,6 +251,8 @@ void loop() {
         file.print ( whPerMile, 5 );
         file.print ( COMMA );
         file.print ( milesPerKwh, 5 );
+        file.print ( COMMA );
+        file.print ( c, 2 );
         file.print ( COMMA );
 
         for ( int i = 0; i < 22; i++ ) {

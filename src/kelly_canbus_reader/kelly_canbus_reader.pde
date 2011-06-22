@@ -19,6 +19,7 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 #include <KellyCanbus.h>
 #include <mcp2515.h>
 #include <stdlib.h>
+#include <Time.h>
 
 
 SdFat sd;
@@ -32,6 +33,7 @@ SdFile rawFile;
 NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
+#define TIMEZONEOFFSET -7
 #define COMMAND 0xFE
 #define CLEAR   0x01
 
@@ -57,8 +59,6 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 int LED2 = 8;
 int LED3 = 7;
 
-uint32_t iterations;
-
 int brightness = 129;
 
 //int baseChars16Column[4] = { 0, 64, 16, 80 };
@@ -80,13 +80,13 @@ unsigned long chars;
 float flat, flon, fmph, fcourse;
 float prev_flat, prev_flon;
 float distance;
-int year;
-uint8_t month, day, hour, minute, second, hundredths;
+float tripDistance;
+//int year;
+//uint8_t month, day, hour, minute, second, hundredths;
 bool new_gps_data = false;
 
 float milesPerKwh;
 float whPerMile;
-
 
 #define vOutPin A0
 #define vInPin  A1
@@ -102,6 +102,8 @@ float c;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
+
+uint32_t iterations = 0;
  
 void setup() {
     uint16_t ret;
@@ -130,6 +132,7 @@ void setup() {
     Serial.println ( FreeRam() );
     
     analogReference(DEFAULT);
+    setSyncProvider(gpsTimeToArduinoTime);
 
     clear_lcd();
     move_to ( 0, 0 );
@@ -148,39 +151,58 @@ void setup() {
     move_to ( 1, 0 );
 
     init_logger();
-    lcdSerial.print ("logger OK         " );
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
-    iterations = 0;
     clear_lcd();
+    move_to ( 0, 0 );
+    lcdSerial.print ( "MPH:" );
+    move_to ( 1, 0 );
+    lcdSerial.print ( "C:" );
+    //move_to ( 1, 10 );
+    //lcdSerial.print ( "i:" );
+    move_to ( 2, 0 );
+    lcdSerial.print ( "wm:" );
+    move_to ( 2, 10 );
+    lcdSerial.print ( "mk:" );
+    move_to ( 3, 0 );
+    lcdSerial.print ( "Trip:" );
 }
- 
+
 void loop() {
     iterations++;
-
     currentMillis = millis();
+    new_gps_data = false;
+    time_t currentTime;
     while ( gpsSerial.available() ) {
         if ( new_gps_data = gps.encode( gpsSerial.read() ) ) {
             gps.f_get_position(&flat, &flon, &fix_age);
             fmph = gps.f_speed_mph();
-            gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+            if ( fmph > 150 ) {
+                fmph = 0;
+            }
+            //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
             fcourse = gps.f_course();
             gps.get_datetime(&date, &time, &fix_age);
             if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
               distance = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
+              if ( distance > 10 ) {
+                  distance = 0;
+              }
+              tripDistance += distance;
               prev_flat = flat;
               prev_flon = flon;
             }
             break;
         }
     }
-    
+
         /*
          * if we have new GPS data or it's been 1 second since the last 
          * update, perform the full update which includes reading all data,
          * updating the LCD, and writing a record to the primary file.
          */
     if ( ( new_gps_data ) || ( currentMillis - lastFullReadMillis > 1000 ) ) {
+
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;
         if ( distance > 0 ) {
@@ -200,60 +222,70 @@ void loop() {
         c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
         //f = c * 9 / 5 + 32;
 
-        move_to ( 0, 0 );
-        lcdSerial.print ( fmph, 2 );
-        lcdSerial.print ( " " );
-        lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 2 );
-        move_to ( 1, 0 );
-        lcdSerial.print ( "B+: " );
-        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-        move_to ( 2, 0 );
-        lcdSerial.print ( "Wh/m: " );
-        lcdSerial.print ( whPerMile, 2 );
-        lcdSerial.print ( "   " );
-        move_to ( 3, 0 );
-        //lcdSerial.print ( "m/kWh: " );
-        //lcdSerial.print ( milesPerKwh, 2 );
-        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
-        lcdSerial.print ( "/" );
-        lcdSerial.print ( c, 1 );
-        lcdSerial.print ( "C, i " );
-        lcdSerial.print ( kellyCanbus.count, DEC );
+        currentTime = now();
 
-        file.print ( currentMillis, DEC );
-        file.print ( COMMA );
-        file.print ( tDiffMillis, DEC );
-        file.print ( COMMA );
-        file.print ( date, DEC );
-        file.print ( COMMA );
-        file.print ( time, DEC );
-        file.print ( COMMA );
-        file.print ( fmph, 2 );
-        file.print ( COMMA );
-        file.print ( kellyCanbus.getMPHFromRPM(), 2 );
-        file.print ( COMMA );
-        file.print ( kellyCanbus.getTractionPackVoltage(), 3 );
-        file.print ( COMMA );
-        file.print ( flat, 5 );
-        file.print ( COMMA );
-        file.print ( flon, 5 );
-        file.print ( COMMA );
-        file.print ( fcourse, 2 );
-        file.print ( COMMA );
-        file.print ( distance, 5 );
-        file.print ( COMMA );
-        file.print ( kellyCanbus.iAvg, 4 );
-        file.print ( COMMA );
-        file.print ( kellyCanbus.vAvg, 4 );
-        file.print ( COMMA );
-        file.print ( kellyCanbus.wAvg, 4 );
-        file.print ( COMMA );
-        file.print ( whPerMile, 5 );
-        file.print ( COMMA );
-        file.print ( milesPerKwh, 5 );
-        file.print ( COMMA );
-        file.print ( c, 2 );
-        file.print ( COMMA );
+        move_to ( 0, 4 );
+        lcdSerial.print ( "                " );
+        move_to ( 0, 4 );
+        lcdSerial.print ( fmph, 2 );
+        move_to ( 0, 9 );
+        lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 1 );
+        move_to ( 0, 14 );
+        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 1 );
+
+        move_to ( 1, 2 );
+        lcdSerial.print ( "        " );
+        move_to ( 1, 2 );
+        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
+        move_to ( 1, 5 );
+        lcdSerial.print ( c, 1 );
+        move_to ( 1, 12 );
+        lcdSerial.print ( "        " );
+        //move_to ( 1, 12 );
+        //lcdSerial.print ( kellyCanbus.count, DEC );
+        move_to ( 1, 16 );
+        lcdSerial.print ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 2 );
+
+        move_to ( 2, 3 );
+        lcdSerial.print ( "       " );
+        move_to ( 2, 3 );
+        lcdSerial.print ( whPerMile, 2 );
+        move_to ( 2, 13 );
+        lcdSerial.print ( "       " );
+        move_to ( 2, 13 );
+        lcdSerial.print ( milesPerKwh, 2 );
+        move_to ( 3, 5 );
+        lcdSerial.print ( "      " );
+        move_to ( 3, 5 );
+        lcdSerial.print ( tripDistance, 2 );
+        move_to ( 3, 12 );
+        lcdPrintDigits ( hour ( currentTime ) );
+            // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
+        move_to ( 3, 14 );
+        lcdSerial.print ( ":" );
+        lcdPrintDigits ( minute ( currentTime ) );
+        lcdSerial.print ( ":" );
+        lcdPrintDigits ( second ( currentTime ) );
+
+        file.print ( currentMillis, DEC ); file.print ( COMMA );
+        file.print ( tDiffMillis, DEC ); file.print ( COMMA );
+        file.print ( kellyCanbus.count, DEC ); file.print ( COMMA );
+        file.print ( year ( currentTime ) ); filePrintDigits ( month( currentTime ) ); filePrintDigits ( day ( currentTime ) ); file.print ( COMMA );
+        filePrintDigits ( hour ( currentTime ) ); filePrintDigits ( minute ( currentTime ) ); filePrintDigits ( second ( currentTime ) ); file.print ( COMMA );
+        file.print ( fmph, 2 ); file.print ( COMMA );
+        file.print ( kellyCanbus.getMPHFromRPM(), 2 ); file.print ( COMMA );
+        file.print ( kellyCanbus.getTractionPackVoltage(), 3 ); file.print ( COMMA );
+        file.print ( flat, 5 ); file.print ( COMMA );
+        file.print ( flon, 5 ); file.print ( COMMA );
+        file.print ( fcourse, 2 ); file.print ( COMMA );
+        file.print ( distance, 5 ); file.print ( COMMA );
+        file.print ( kellyCanbus.iAvg, 4 ); file.print ( COMMA );
+        file.print ( kellyCanbus.vAvg, 4 ); file.print ( COMMA );
+        file.print ( kellyCanbus.wAvg, 4 ); file.print ( COMMA );
+        file.print ( whPerMile, 5 ); file.print ( COMMA );
+        file.print ( milesPerKwh, 5 ); file.print ( COMMA );
+        file.print ( c, 2 ); file.print ( COMMA );
+        file.print ( z2, 5 ); file.print ( COMMA );
 
         for ( int i = 0; i < 22; i++ ) {
             file.print ( kellyCanbus.rawData[i], DEC );
@@ -282,7 +314,10 @@ void loop() {
 
     if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
         Serial.print ( "count: " );
-        Serial.println ( kellyCanbus.count, DEC );
+        Serial.print ( kellyCanbus.count, DEC );
+        Serial.print ( ", iterations: " );
+        Serial.println ( iterations, DEC );
+        iterations = 0;
         Serial.println ( "syncing..." );
         file.sync();
         rawFile.sync();
@@ -379,8 +414,8 @@ void init_logger() {
         name[2] = i%1000 / 100 + '0';
         name[3] = i%100 / 10 + '0';
         name[4] = i%10 + '0';
-        Serial.print ( "checking" );
-        Serial.println ( name );
+        //Serial.print ( "checking" );
+        //Serial.println ( name );
         if (sd.exists(name)) {
             continue;
         }
@@ -413,9 +448,37 @@ void init_logger() {
 }
 
 void dateTime(uint16_t* date, uint16_t* time) {
-  // return date using FAT_DATE macro to format fields
-  *date = FAT_DATE(year, month, day );
+    time_t currentTime = now();
+    // return date using FAT_DATE macro to format fields
+    *date = FAT_DATE ( year ( currentTime ), month ( currentTime ), day ( currentTime ) );
 
-  // return time using FAT_TIME macro to format fields
-  *time = FAT_TIME(hour, minute, second );
+    // return time using FAT_TIME macro to format fields
+    *time = FAT_TIME ( hour ( currentTime ), minute ( currentTime ), second ( currentTime ) );
+}
+
+time_t gpsTimeToArduinoTime(){
+  tmElements_t tm;
+  int year;
+  gps.crack_datetime(&year, &tm.Month, &tm.Day, &tm.Hour, &tm.Minute, &tm.Second, NULL, NULL);
+    // ensure that the date is valid
+  if ( year < 2011 ) {
+      return 0;
+  }
+  tm.Year = year - 1970; 
+  time_t time = makeTime(tm);
+  return time + (TIMEZONEOFFSET * SECS_PER_HOUR);
+}
+
+void lcdPrintDigits(int digits){
+  if ( digits < 10 ) {
+      lcdSerial.print ( '0' );
+  }
+  lcdSerial.print ( digits );
+}
+
+void filePrintDigits(int digits){
+  if ( digits < 10 ) {
+      file.print ( '0' );
+  }
+  file.print ( digits );
 }

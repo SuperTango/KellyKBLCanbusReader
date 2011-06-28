@@ -179,30 +179,7 @@ void loop() {
     new_gps_data = false;
     time_t currentTime;
     while ( gpsSerial.available() ) {
-        if ( new_gps_data = gps.encode( gpsSerial.read() ) ) {
-            gps.f_get_position(&flat, &flon, &fix_age);
-            fmph = gps.f_speed_mph();
-            if ( fmph > 150 ) {
-                fmph = 0;
-            }
-            //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
-            fcourse = gps.f_course();
-            gps.get_datetime(&date, &time, &fix_age);
-            if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
-              distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
-              if ( distance_GPS > 10 ) {
-                  distance_GPS = 0;
-              }
-              if ( distance_GPS == 0 ) {
-                  new_gps_data = false;
-                  break;
-              }
-              tripDistance_GPS += distance_GPS;
-              prev_flat = flat;
-              prev_flon = flon;
-            }
-            break;
-        }
+        gps.encode( gpsSerial.read() );
     }
 
         /*
@@ -210,7 +187,26 @@ void loop() {
          * update, perform the full update which includes reading all data,
          * updating the LCD, and writing a record to the primary file.
          */
-    if ( ( new_gps_data ) || ( currentMillis - lastFullReadMillis > 1000 ) ) {
+    if ( currentMillis - lastFullReadMillis > 1000 ) {
+        gps.f_get_position(&flat, &flon, &fix_age);
+        fmph = gps.f_speed_mph();
+        if ( fmph > 150 ) {
+            fmph = 0;
+        }
+        //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+        fcourse = gps.f_course();
+        gps.get_datetime(&date, &time, &fix_age);
+        if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
+            distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
+            if ( distance_GPS > 10 ) {
+                distance_GPS = 0;
+            }
+            tripDistance_GPS += distance_GPS;
+            prev_flat = flat;
+            prev_flon = flon;
+        } else  {
+            distance_GPS = 0;
+        }
 
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;

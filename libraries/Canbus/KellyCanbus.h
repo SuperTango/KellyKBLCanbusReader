@@ -25,8 +25,8 @@ class KellyCanbus
 	KellyCanbus( float );
         char init();
         void fetchAllRuntimeData();
-        void getCCP_A2D_BATCH_READ1();
-        void getCCP_A2D_BATCH_READ2();
+        bool getCCP_A2D_BATCH_READ1();
+        bool getCCP_A2D_BATCH_READ2();
         void getCCP_MONITOR1();
         void getCCP_MONITOR2();
         float getTractionPackVoltage();
@@ -42,6 +42,7 @@ class KellyCanbus
         void resetMotorInfo();
         uint8_t count;
         uint16_t rpm;
+        bool available;
     private:
         float divider;
         //uint8_t brakeAnalogRaw;

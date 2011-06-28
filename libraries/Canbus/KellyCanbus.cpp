@@ -33,32 +33,46 @@ char KellyCanbus::init() {
 }
 
 void KellyCanbus::fetchAllRuntimeData() {
-    getCCP_A2D_BATCH_READ1();
-    getCCP_A2D_BATCH_READ2();
-    getCCP_MONITOR1();
-    getCCP_MONITOR2();
-
-    iAvg = (float)iCumulative / count;
-    vAvg = (float)vCumulative / count;
-    wAvg = iAvg * vAvg;
+    if ( getCCP_A2D_BATCH_READ1() ) {
+        getCCP_A2D_BATCH_READ2();
+        getCCP_MONITOR1();
+        getCCP_MONITOR2();
+        iAvg = (float)iCumulative / count;
+        vAvg = (float)vCumulative / count;
+        wAvg = iAvg * vAvg;
+        available = true;
+    } else {
+        iAvg = 0;
+        vAvg = 0;
+        wAvg = 0;
+        available = false;
+    }
 }
 
-void KellyCanbus::getCCP_A2D_BATCH_READ1() {
+bool KellyCanbus::getCCP_A2D_BATCH_READ1() {
     memset ( responseData, 0, 8 );
-    bool status = canRequest ( CCP_A2D_BATCH_READ1_DATA, responseData );
+    if ( ! canRequest ( CCP_A2D_BATCH_READ1_DATA, responseData ) ) {
+        return false;
+    }
     memcpy ( rawData + CCP_A2D_BATCH_READ1_OFFSET, responseData, 5 );
     //brakeAnalogRaw = responseData[0];
     //throttleAnalogRaw = responseData[1];
     //controllerVoltageRaw = responseData[2];
     //fiveVoltVoltageRaw = responseData[3];
     tractionPackVoltageRaw = responseData[4];
+    return true;
 }
 
-void KellyCanbus::getCCP_A2D_BATCH_READ2() {
+bool KellyCanbus::getCCP_A2D_BATCH_READ2() {
     uint8_t vMax = 0;
     uint8_t iMax = 0;
+    if ( available == false ) {
+        return false;
+    }
     memset ( responseData, 0, 8 );
-    bool status = canRequest ( CCP_A2D_BATCH_READ2_DATA, responseData );
+    if ( ! canRequest ( CCP_A2D_BATCH_READ2_DATA, responseData ) ) {
+        return false;
+    }
     memcpy ( rawData + CCP_A2D_BATCH_READ2_OFFSET, responseData, 6 );
 
     for ( int i = 0; i < 3; i++ ) {
@@ -77,6 +91,7 @@ void KellyCanbus::getCCP_A2D_BATCH_READ2() {
     count++;
     iCumulative += iMax;
     vCumulative += vMax;
+    return true;
 }
 
 void KellyCanbus::getCCP_MONITOR1() {
@@ -127,7 +142,7 @@ bool KellyCanbus::canRequest(uint8_t requestData[8], uint8_t *responseData) {
     mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
     address = mcp2515_send_message(&request);
     
-    while(iterations < 40000) {
+    while(iterations < 32500) {
         iterations++;
         if (mcp2515_check_message()) 
         {

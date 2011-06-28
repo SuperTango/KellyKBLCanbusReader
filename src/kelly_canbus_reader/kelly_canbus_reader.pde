@@ -89,7 +89,6 @@ float tripDistance_GPS;
 //float tripDistance_RPM;
 //int year;
 //uint8_t month, day, hour, minute, second, hundredths;
-bool new_gps_data = false;
 
 float milesPerKwh_GPS;
 float whPerMile_GPS;
@@ -110,6 +109,8 @@ float c;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
+
+bool kellyAvailable = false;
 
 uint32_t iterations = 0;
  
@@ -133,6 +134,7 @@ void setup() {
     digitalWrite(LEFT, HIGH);
     digitalWrite(RIGHT, HIGH);
     digitalWrite(CLICK, HIGH);
+    //digitalWrite(vOutPin, HIGH );
   
     Serial.begin(115200);
     Serial.println("Kelly KBLI/HP Logger");  /* For debug use */
@@ -152,6 +154,15 @@ void setup() {
     lcdSerial.print ( "CAN Init " );
     if(kellyCanbus.init()) {
         lcdSerial.print("OK");
+        /*
+        long t1 = millis();
+        long l = kellyCanbus.canCheck();
+        long t2 = millis();
+        Serial.print ( "time: " );
+        Serial.print ( ( t2 - t1 ), DEC );
+        Serial.print ( "iterations: " );
+        Serial.println ( l );
+        */
     } else {
         lcdSerial.print("Failed");
     } 
@@ -179,10 +190,18 @@ void setup() {
 void loop() {
     iterations++;
     currentMillis = millis();
-    new_gps_data = false;
     time_t currentTime;
     while ( gpsSerial.available() ) {
-        gps.encode( gpsSerial.read() );
+        if ( gps.encode( gpsSerial.read() ) ) {
+            gps.f_get_position(&flat, &flon, &fix_age);
+            fmph = gps.f_speed_mph();
+            if ( fmph > 150 ) {
+                fmph = 0;
+            }
+            //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+            fcourse = gps.f_course();
+            gps.get_datetime(&date, &time, &fix_age);
+        }
     }
 
         /*
@@ -191,14 +210,7 @@ void loop() {
          * updating the LCD, and writing a record to the primary file.
          */
     if ( currentMillis - lastFullReadMillis > 1000 ) {
-        gps.f_get_position(&flat, &flon, &fix_age);
-        fmph = gps.f_speed_mph();
-        if ( fmph > 150 ) {
-            fmph = 0;
-        }
-        //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
-        fcourse = gps.f_course();
-        gps.get_datetime(&date, &time, &fix_age);
+
         if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
             distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
             if ( distance_GPS > 10 ) {
@@ -210,7 +222,6 @@ void loop() {
         } else  {
             distance_GPS = 0;
         }
-
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;
         //distance_RPM = kellyCanbus.rpm * 80.296 (circumference in inches/rev) * 1.04530931800 (adjustment factor) / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
@@ -280,7 +291,6 @@ void loop() {
 
         printLong ( *stream, currentMillis, DEC );
         printInt ( *stream, tDiffMillis, DEC );
-        printInt ( *stream, new_gps_data, DEC );
         printLong ( *stream, kellyCanbus.count, DEC );
         printDigits ( *stream, year ( currentTime ) ); printDigits ( *stream, month ( currentTime ) ); printDigits ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
         printDigits ( *stream, hour ( currentTime ) ); printDigits ( *stream, minute ( currentTime ) ); printDigits ( *stream, second ( currentTime )); printString ( *stream, COMMA );
@@ -329,14 +339,13 @@ void loop() {
         Serial.print ( ", iterations: " );
         Serial.println ( iterations, DEC );
         iterations = 0;
-        Serial.println ( "syncing..." );
+        Serial.println ( "sync" );
         file.sync();
         rawFile.sync();
         lastMillis2 = currentMillis;
     }
 
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
-        file.println ( "Closing" );
         file.close();
         rawFile.close();
         Serial.println("Done");

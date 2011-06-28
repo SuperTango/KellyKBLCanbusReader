@@ -30,8 +30,8 @@ SdFat sd;
 SdFile file;
 SdFile rawFile;
 
-Print *stream = &Serial;
-//Print *stream = &file;
+//Print *stream = &Serial;
+Print *stream = &file;
 
 NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, 5);

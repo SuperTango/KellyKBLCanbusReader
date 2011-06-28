@@ -30,6 +30,9 @@ SdFat sd;
 SdFile file;
 SdFile rawFile;
 
+Print *stream = &Serial;
+//Print *stream = &file;
+
 NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
@@ -267,40 +270,39 @@ void loop() {
         move_to ( 3, 5 );
         lcdSerial.print ( tripDistance_GPS, 2 );
         move_to ( 3, 12 );
-        lcdPrintDigits ( hour ( currentTime ) );
+        printDigits ( lcdSerial, hour ( currentTime ) );
             // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
         move_to ( 3, 14 );
         lcdSerial.print ( ":" );
-        lcdPrintDigits ( minute ( currentTime ) );
+        printDigits ( lcdSerial, minute ( currentTime ) );
         lcdSerial.print ( ":" );
-        lcdPrintDigits ( second ( currentTime ) );
+        printDigits ( lcdSerial, second ( currentTime ) );
 
-        file.print ( currentMillis, DEC ); file.print ( COMMA );
-        file.print ( tDiffMillis, DEC ); file.print ( COMMA );
-        file.print ( new_gps_data ); file.print ( COMMA );
-        file.print ( kellyCanbus.count, DEC ); file.print ( COMMA );
-        file.print ( year ( currentTime ) ); filePrintDigits ( month( currentTime ) ); filePrintDigits ( day ( currentTime ) ); file.print ( COMMA );
-        filePrintDigits ( hour ( currentTime ) ); filePrintDigits ( minute ( currentTime ) ); filePrintDigits ( second ( currentTime ) ); file.print ( COMMA );
-        file.print ( fmph, 2 ); file.print ( COMMA );
-        file.print ( kellyCanbus.getMPHFromRPM(), 2 ); file.print ( COMMA );
-        file.print ( kellyCanbus.getTractionPackVoltage(), 3 ); file.print ( COMMA );
-        file.print ( flat, 5 ); file.print ( COMMA );
-        file.print ( flon, 5 ); file.print ( COMMA );
-        file.print ( fcourse, 2 ); file.print ( COMMA );
-        file.print ( distance_GPS, 5 ); file.print ( COMMA );
-        file.print ( kellyCanbus.iAvg, 4 ); file.print ( COMMA );
-        file.print ( kellyCanbus.vAvg, 4 ); file.print ( COMMA );
-        file.print ( kellyCanbus.wAvg, 4 ); file.print ( COMMA );
-        file.print ( whPerMile_GPS, 5 ); file.print ( COMMA );
-        file.print ( milesPerKwh_GPS, 5 ); file.print ( COMMA );
-        file.print ( c, 2 ); file.print ( COMMA );
-        file.print ( vOutReading, DEC ); file.print ( COMMA );
+        printLong ( *stream, currentMillis, DEC );
+        printInt ( *stream, tDiffMillis, DEC );
+        printInt ( *stream, new_gps_data, DEC );
+        printLong ( *stream, kellyCanbus.count, DEC );
+        printDigits ( *stream, year ( currentTime ) ); printDigits ( *stream, month ( currentTime ) ); printDigits ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
+        printDigits ( *stream, hour ( currentTime ) ); printDigits ( *stream, minute ( currentTime ) ); printDigits ( *stream, second ( currentTime )); printString ( *stream, COMMA );
+        printFloat ( *stream, fmph, 2 );
+        printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
+        printFloat ( *stream, kellyCanbus.getTractionPackVoltage(), 3 );
+        printFloat ( *stream, flat, 5 );
+        printFloat ( *stream, flon, 5 );
+        printFloat ( *stream, fcourse, 2 );
+        printFloat ( *stream, distance_GPS, 5 );
+        printFloat ( *stream, kellyCanbus.iAvg, 4 );
+        printFloat ( *stream, kellyCanbus.vAvg, 4 );
+        printFloat ( *stream, kellyCanbus.wAvg, 4 );
+        printFloat ( *stream, whPerMile_GPS, 5 );
+        printFloat ( *stream, milesPerKwh_GPS, 5 );
+        printFloat ( *stream, c, 2 );
+        printInt ( *stream, vOutReading, DEC );
 
         for ( int i = 0; i < 22; i++ ) {
-            file.print ( kellyCanbus.rawData[i], DEC );
-            file.print ( COMMA );
+            printInt ( *stream, kellyCanbus.rawData[i], DEC );
         }
-        file.println();
+        printLine ( *stream );
         lastFullReadMillis = currentMillis;
             // reset distance_GPS in case we do another round before getting another
             // set of GPS data, we don't re-calcualte wh/mi with a bogus distance_GPS.
@@ -478,16 +480,33 @@ time_t gpsTimeToArduinoTime(){
   return time + (TIMEZONEOFFSET * SECS_PER_HOUR);
 }
 
-void lcdPrintDigits(int digits){
+void printDigits ( Print &stream, int digits ) {
   if ( digits < 10 ) {
-      lcdSerial.print ( '0' );
+      stream.print ( '0' );
   }
-  lcdSerial.print ( digits );
+  stream.print ( digits );
 }
 
-void filePrintDigits(int digits){
-  if ( digits < 10 ) {
-      file.print ( '0' );
-  }
-  file.print ( digits );
+void printFloat ( Print &stream, float f, int places ) {
+    stream.print ( f, places );
+    stream.print ( COMMA );
+}
+
+void printInt ( Print &stream, int i, int type ) {
+    stream.print ( i, type );
+    stream.print ( COMMA );
+}
+
+void printLong ( Print &stream, long l, int type ) {
+    stream.print ( l, type );
+    stream.print ( COMMA );
+}
+
+void printString ( Print &stream, char *s ) {
+    stream.print ( s );
+    //stream.print ( COMMA );
+}
+
+void printLine ( Print &stream ) {
+    stream.println();
 }

@@ -7,7 +7,7 @@
 use strict;
 use warnings;
 
-open (A , "../nogit/LogData/LG_00122b.csv" )||die;
+open (A , "../../nogit/LogData/2011_06_22/2011_06_22-12_16_48-log.CSV" )||die;
 my $line = <A>;
 my $last = '';
 
@@ -15,15 +15,35 @@ my $last = '';
 #my $c1 = checksum ( $s1 );
 #print "$s1*$c1\n";exit;
 
+my $timeIndex = 4;
+my $speedIndex = 6;
+my $latIndex = 8;
+my $lonIndex = 9;
+my $distanceIndex = 11;
+my $bearingIndex = 10;
+my $dateIndex=3;
+$line = <A>;
+
 while ( $line = <A> ) {
     my @arr = split ( /,/, $line );
-    my ( $year, $mon, $day, $hour, $min, $sec ) = $arr[1] =~ /^(..)(.)(..)_(..)(..)(.*)/;
-    my $dateStr = sprintf ( "%02d%02d%02d", $day, $mon, $year );
-    my $timeStr = sprintf ( "%02d%02d%02d.000", $hour, $min, $sec );
-    if ( "$dateStr$timeStr" ne $last ) {
+    #my ( $year, $mon, $day ) = $arr[2] =~ /^(..)(..)(..)/;
+    #my ( $hour, $min, $sec ) = $arr[3] =~ /^(..)(..)(..)/;
+    #my $dateStr = sprintf ( "%02d%02d%02d", $day, $mon, $year );
+    #my $timeStr = sprintf ( "%02d%02d%02d.000", $hour, $min, $sec );
+    if ( ( $arr[$timeIndex] ne $last ) && ( $arr[$distanceIndex] > 0 ) ) {
         #print "$dateStr, $timeStr\n";
-        $last = "$dateStr$timeStr";
-        my $sentence = "\$GPRMC,$timeStr,A,$arr[5],$arr[6],$arr[7],$arr[8],$arr[9],$arr[10],$dateStr,,";
+        $last = $arr[$timeIndex];
+        $arr[$dateIndex] =~ /20(..)(..)(..)/;
+        my $dateStr = $3 . $2 . $1;
+        my $timeStr = $arr[$timeIndex];
+        my $knots = sprintf ( "%.2d", ( $arr[$speedIndex] * 0.868976242 ) );
+        my $latDeg = int ($arr[$latIndex] );
+        my $latMin = ( $arr[$latIndex] - int ($arr[$latIndex] ) ) * 60;
+        my $latStr = sprintf ( "%d%0.4f", $latDeg, $latMin );
+        my $lonDeg = abs ( int ($arr[$lonIndex] ) ) ;
+        my $lonMin = ( abs($arr[$lonIndex] ) - abs( int ($arr[$lonIndex] ) ) ) * 60;
+        my $lonStr = sprintf ( "%d%07.04f", $lonDeg, $lonMin );
+        my $sentence = "\$GPRMC,$timeStr.000,A,$latStr,N,$lonStr,W,$knots,$arr[$bearingIndex],$arr[$dateIndex],,";
         my $checksum = checksum ( $sentence );
         print "$sentence*$checksum\n";
     }

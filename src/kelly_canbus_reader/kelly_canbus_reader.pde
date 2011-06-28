@@ -79,14 +79,19 @@ unsigned long fix_age, course, date, time;
 unsigned long chars;
 float flat, flon, fmph, fcourse;
 float prev_flat, prev_flon;
-float distance;
-float tripDistance;
+float distance_GPS;
+//float distance_RPM;
+//float lastDistance_RPM;
+float tripDistance_GPS;
+//float tripDistance_RPM;
 //int year;
 //uint8_t month, day, hour, minute, second, hundredths;
 bool new_gps_data = false;
 
-float milesPerKwh;
-float whPerMile;
+float milesPerKwh_GPS;
+float whPerMile_GPS;
+//float milesPerKwh_RPM;
+//float whPerMile_RPM;
 
 #define vOutPin A0
 #define vInPin  A1
@@ -184,11 +189,15 @@ void loop() {
             fcourse = gps.f_course();
             gps.get_datetime(&date, &time, &fix_age);
             if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
-              distance = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
-              if ( distance > 10 ) {
-                  distance = 0;
+              distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
+              if ( distance_GPS > 10 ) {
+                  distance_GPS = 0;
               }
-              tripDistance += distance;
+              if ( distance_GPS == 0 ) {
+                  new_gps_data = false;
+                  break;
+              }
+              tripDistance_GPS += distance_GPS;
               prev_flat = flat;
               prev_flon = flon;
             }
@@ -205,12 +214,15 @@ void loop() {
 
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;
-        if ( distance > 0 ) {
-            whPerMile = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance;
-            milesPerKwh = distance / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
+        //distance_RPM = kellyCanbus.rpm * 80.296 (circumference in inches/rev) * 1.04530931800 (adjustment factor) / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
+        //distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
+        if ( distance_GPS > 0 ) {
+            whPerMile_GPS = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance_GPS;
+            milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
+            milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
         } else {
-            whPerMile = 0;
-            milesPerKwh = 0;
+            whPerMile_GPS = 0;
+            milesPerKwh_GPS = 0;
         }
 
 
@@ -227,17 +239,17 @@ void loop() {
         move_to ( 0, 4 );
         lcdSerial.print ( "                " );
         move_to ( 0, 4 );
-        lcdSerial.print ( fmph, 2 );
+        lcdSerial.print ( fmph, 1 );
         move_to ( 0, 9 );
         lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 1 );
         move_to ( 0, 14 );
-        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 1 );
+        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 2 );
 
         move_to ( 1, 2 );
-        lcdSerial.print ( "        " );
+        lcdSerial.print ( "         " );
         move_to ( 1, 2 );
         lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
-        move_to ( 1, 5 );
+        move_to ( 1, 6 );
         lcdSerial.print ( c, 1 );
         move_to ( 1, 12 );
         lcdSerial.print ( "        " );
@@ -249,15 +261,15 @@ void loop() {
         move_to ( 2, 3 );
         lcdSerial.print ( "       " );
         move_to ( 2, 3 );
-        lcdSerial.print ( whPerMile, 2 );
+        lcdSerial.print ( whPerMile_GPS, 2 );
         move_to ( 2, 13 );
         lcdSerial.print ( "       " );
         move_to ( 2, 13 );
-        lcdSerial.print ( milesPerKwh, 2 );
+        lcdSerial.print ( milesPerKwh_GPS, 2 );
         move_to ( 3, 5 );
         lcdSerial.print ( "      " );
         move_to ( 3, 5 );
-        lcdSerial.print ( tripDistance, 2 );
+        lcdSerial.print ( tripDistance_GPS, 2 );
         move_to ( 3, 12 );
         lcdPrintDigits ( hour ( currentTime ) );
             // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
@@ -269,6 +281,7 @@ void loop() {
 
         file.print ( currentMillis, DEC ); file.print ( COMMA );
         file.print ( tDiffMillis, DEC ); file.print ( COMMA );
+        file.print ( new_gps_data ); file.print ( COMMA );
         file.print ( kellyCanbus.count, DEC ); file.print ( COMMA );
         file.print ( year ( currentTime ) ); filePrintDigits ( month( currentTime ) ); filePrintDigits ( day ( currentTime ) ); file.print ( COMMA );
         filePrintDigits ( hour ( currentTime ) ); filePrintDigits ( minute ( currentTime ) ); filePrintDigits ( second ( currentTime ) ); file.print ( COMMA );
@@ -278,14 +291,14 @@ void loop() {
         file.print ( flat, 5 ); file.print ( COMMA );
         file.print ( flon, 5 ); file.print ( COMMA );
         file.print ( fcourse, 2 ); file.print ( COMMA );
-        file.print ( distance, 5 ); file.print ( COMMA );
+        file.print ( distance_GPS, 5 ); file.print ( COMMA );
         file.print ( kellyCanbus.iAvg, 4 ); file.print ( COMMA );
         file.print ( kellyCanbus.vAvg, 4 ); file.print ( COMMA );
         file.print ( kellyCanbus.wAvg, 4 ); file.print ( COMMA );
-        file.print ( whPerMile, 5 ); file.print ( COMMA );
-        file.print ( milesPerKwh, 5 ); file.print ( COMMA );
+        file.print ( whPerMile_GPS, 5 ); file.print ( COMMA );
+        file.print ( milesPerKwh_GPS, 5 ); file.print ( COMMA );
         file.print ( c, 2 ); file.print ( COMMA );
-        file.print ( z2, 5 ); file.print ( COMMA );
+        file.print ( vOutReading, DEC ); file.print ( COMMA );
 
         for ( int i = 0; i < 22; i++ ) {
             file.print ( kellyCanbus.rawData[i], DEC );
@@ -293,9 +306,9 @@ void loop() {
         }
         file.println();
         lastFullReadMillis = currentMillis;
-            // reset distance in case we do another round before getting another
-            // set of GPS data, we don't re-calcualte wh/mi with a bogus distance.
-        distance = 0;
+            // reset distance_GPS in case we do another round before getting another
+            // set of GPS data, we don't re-calcualte wh/mi with a bogus distance_GPS.
+        distance_GPS = 0;
         kellyCanbus.resetMotorInfo();
 
     } else {

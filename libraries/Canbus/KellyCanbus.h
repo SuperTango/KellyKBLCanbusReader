@@ -41,6 +41,7 @@ class KellyCanbus
         float wAvg;
         void resetMotorInfo();
         uint8_t count;
+        uint16_t rpm;
     private:
         float divider;
         //uint8_t brakeAnalogRaw;
@@ -54,7 +55,6 @@ class KellyCanbus
         //uint8_t controllerTemperature;
         //uint8_t highMosfetTemp;
         //uint8_t lowMosfetTemp;
-        uint16_t rpm;
         //uint8_t percentRatedCurrent;
         //uint16_t errorCode;
 

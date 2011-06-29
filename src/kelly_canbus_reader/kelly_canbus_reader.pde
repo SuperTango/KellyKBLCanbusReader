@@ -43,7 +43,6 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define KNOTSTOMPH 1.15077945
 #define METERSTOMILES 0.000621371192
 #define MILLISPERHOUR 3600000
-#define BLANK_LINE "                    "
 
 #define COMMA ","
 
@@ -144,7 +143,7 @@ void setup() {
 
     clear_lcd();
     move_to ( 0, 0 );
-    lcdSerial.print ( "MotoLogger Init" );
+    lcdSerial.print ( "TangoLogger Init" );
     move_to ( 2, 0 );
     lcdSerial.print ( "Free Ram: " );
     lcdSerial.print ( FreeRam() );
@@ -152,21 +151,13 @@ void setup() {
     lcdSerial.print ( "CAN Init " );
     if(kellyCanbus.init()) {
         lcdSerial.print("OK");
-        /*
-        long t1 = millis();
-        long l = kellyCanbus.canCheck();
-        long t2 = millis();
-        Serial.print ( "time: " );
-        Serial.print ( ( t2 - t1 ), DEC );
-        Serial.print ( "iterations: " );
-        Serial.println ( l );
-        */
     } else {
         lcdSerial.print("Failed");
     } 
     delay ( 500 );
-    move_to ( 1, 0 );
 
+    move_to ( 1, 0 );
+    lcdSerial.print ( "Log files...          " );
     init_logger();
     Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
 
@@ -245,43 +236,28 @@ void loop() {
         currentTime = now();
 
         move_to ( 0, 4 );
-        lcdSerial.print ( "                " );
-        move_to ( 0, 4 );
-        lcdSerial.print ( fmph, 1 );
+        lcdPrintFloat ( fmph, 4, 1 );
         move_to ( 0, 9 );
         if ( kellyCanbus.available ) {
-            lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 1 );
-            move_to ( 0, 14 );
-            lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 2 );
+            lcdPrintFloat ( kellyCanbus.getMPHFromRPM(), 4, 1 );
+            lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 7, 2 );
         } else {
             lcdSerial.print ( "NO CAN-BUS!" );
         }
 
         move_to ( 1, 2 );
-        lcdSerial.print ( "         " );
-        move_to ( 1, 2 );
-        lcdSerial.print ( kellyCanbus.rawData[MOTOR_TEMP], DEC );
-        move_to ( 1, 6 );
-        lcdSerial.print ( c, 1 );
-        move_to ( 1, 12 );
-        lcdSerial.print ( "        " );
-        //move_to ( 1, 12 );
-        //lcdSerial.print ( kellyCanbus.count, DEC );
+        lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
+        lcdPrintFloat ( c, 6, 1 );
         move_to ( 1, 16 );
-        lcdSerial.print ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 2 );
+        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 4, 2 );
 
         move_to ( 2, 3 );
-        lcdSerial.print ( "       " );
-        move_to ( 2, 3 );
-        lcdSerial.print ( whPerMile_GPS, 2 );
+        lcdPrintFloat ( whPerMile_GPS, 6, 2 );
         move_to ( 2, 13 );
-        lcdSerial.print ( "       " );
-        move_to ( 2, 13 );
-        lcdSerial.print ( milesPerKwh_GPS, 2 );
+        lcdPrintFloat ( milesPerKwh_GPS, 6, 2 );
+
         move_to ( 3, 5 );
-        lcdSerial.print ( "      " );
-        move_to ( 3, 5 );
-        lcdSerial.print ( tripDistance_GPS, 2 );
+        lcdPrintFloat ( tripDistance_GPS, 6, 2 );
         move_to ( 3, 12 );
         printDigits ( lcdSerial, hour ( currentTime ) );
             // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
@@ -410,14 +386,10 @@ void init_logger() {
     // initialize the SD card at SPI_HALF_SPEED to avoid bus errors with
     // breadboards.  use SPI_FULL_SPEED for better performance.
     // if SD chip select is not SS, the second argument to init is CS pin number
-    if (sd.init(SPI_HALF_SPEED, CHIP_SELECT)) {
-        Serial.println ( "sd init success" );
-    } else {
+    if (! sd.init(SPI_HALF_SPEED, CHIP_SELECT)) {
         sd.initErrorHalt();
     }
     SdFile::dateTimeCallback(dateTime);
-    move_to ( 1, 0 );
-    lcdSerial.print ( "Log files...          " );
 
     Serial.println ( "Searching for files..." );
     // create a new file
@@ -436,8 +408,6 @@ void init_logger() {
         name[2] = i%1000 / 100 + '0';
         name[3] = i%100 / 10 + '0';
         name[4] = i%10 + '0';
-        //Serial.print ( "checking" );
-        //Serial.println ( name );
         if (sd.exists(name)) {
             continue;
         }
@@ -520,4 +490,45 @@ void printString ( Print &stream, char *s ) {
 
 void printLine ( Print &stream ) {
     stream.println();
+}
+
+void lcdPrintFloat ( float f, uint8_t padding, uint8_t places ) {
+    uint8_t count = 0;
+    if ( ( f / 1000 ) > 0 ) {
+        count = 4;
+    } else if ( ( f / 100 ) > 0 ) {
+        count = 3;
+    } else if ( ( f / 10 ) > 0 ) {
+        count = 2;
+    } else {
+        count = 1;
+    }
+    count += places + 1;
+    if ( f < 0 ) {
+        count++;
+    }
+    for ( uint8_t i = padding; i > count; i-- ) {
+        lcdSerial.print ( " " );
+    }
+    lcdSerial.print ( f, places );
+}
+
+void lcdPrintInt ( long l, uint8_t padding, uint8_t type ) {
+    uint8_t count = 0;
+    if ( ( l / 1000 ) > 0 ) {
+        count = 4;
+    } else if ( ( l / 100 ) > 0 ) {
+        count = 3;
+    } else if ( ( l / 10 ) > 0 ) {
+        count = 2;
+    } else {
+        count = 1;
+    }
+    if ( l < 0 ) {
+        count++;
+    }
+    for ( uint8_t i = padding; i > count; i-- ) {
+        lcdSerial.print ( " " );
+    }
+    lcdSerial.print ( l, type );
 }

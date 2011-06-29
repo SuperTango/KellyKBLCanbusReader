@@ -138,8 +138,6 @@ void setup() {
   
     Serial.begin(115200);
     Serial.println("Kelly KBLI/HP Logger");  /* For debug use */
-    Serial.print ( "Free Ram: " );
-    Serial.println ( FreeRam() );
     
     analogReference(DEFAULT);
     setSyncProvider(gpsTimeToArduinoTime);
@@ -251,9 +249,13 @@ void loop() {
         move_to ( 0, 4 );
         lcdSerial.print ( fmph, 1 );
         move_to ( 0, 9 );
-        lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 1 );
-        move_to ( 0, 14 );
-        lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 2 );
+        if ( kellyCanbus.available ) {
+            lcdSerial.print ( kellyCanbus.getMPHFromRPM(), 1 );
+            move_to ( 0, 14 );
+            lcdSerial.print ( kellyCanbus.getTractionPackVoltage(), 2 );
+        } else {
+            lcdSerial.print ( "NO CAN-BUS!" );
+        }
 
         move_to ( 1, 2 );
         lcdSerial.print ( "         " );

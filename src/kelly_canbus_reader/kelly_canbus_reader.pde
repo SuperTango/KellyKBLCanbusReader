@@ -17,38 +17,29 @@ v3.0 21-02-11  Use library from Adafruit for sd card instead.
 #include <TinyGPS.h>
 #include <NewSoftSerial.h>
 #include <KellyCanbus.h>
-#include <mcp2515.h>
-#include <stdlib.h>
 #include <Time.h>
 
 
 SdFat sd;
-//Sd2Card card;
-//SdVolume volume;
-//SdFile root;
-//ofstream file;
-SdFile file;
+SdFile logFile;
 SdFile rawFile;
 
 //Print *stream = &Serial;
-Print *stream = &file;
+Print *stream = &logFile;
 
 NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define TIMEZONEOFFSET -7
-#define COMMAND 0xFE
-#define CLEAR   0x01
+#define LCD_COMMAND 0xFE
+#define LCD_CLEAR   0x01
 
-#define KNOTSTOMPH 1.15077945
 #define METERSTOMILES 0.000621371192
 #define MILLISPERHOUR 3600000
 
 #define COMMA ","
 
-
 #define GPSRATE 4800
-//#define GPSRATE 38400
 
 /* Define Joystick connection */
 #define UP     A1
@@ -64,7 +55,7 @@ int LED3 = 7;
 int brightness = 129;
 
 //int baseChars16Column[4] = { 0, 64, 16, 80 };
-int baseChars20Column[4] = { 0, 64, 20, 84 };
+uint8_t baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long currentMillis;
 unsigned long lastFullReadMillis = 0;
@@ -86,8 +77,6 @@ float distance_GPS;
 //float lastDistance_RPM;
 float tripDistance_GPS;
 //float tripDistance_RPM;
-//int year;
-//uint8_t month, day, hour, minute, second, hundredths;
 
 float milesPerKwh_GPS;
 float whPerMile_GPS;
@@ -104,17 +93,13 @@ float vOut;
 #define Z1 1000.0
 float z2;
 float c;
-//float f;
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
 
-bool kellyAvailable = false;
-
 uint32_t iterations = 0;
  
 void setup() {
-    uint16_t ret;
     Serial.begin(GPSRATE);
     lcdSerial.begin(9600);              /* Setup serial LCD and clear the screen */
     gpsSerial.begin(GPSRATE);
@@ -196,7 +181,7 @@ void loop() {
         /*
          * if we have new GPS data or it's been 1 second since the last 
          * update, perform the full update which includes reading all data,
-         * updating the LCD, and writing a record to the primary file.
+         * updating the LCD, and writing a record to the primary logFile.
          */
     if ( currentMillis - lastFullReadMillis > 1000 ) {
 
@@ -223,7 +208,6 @@ void loop() {
             whPerMile_GPS = 0;
             milesPerKwh_GPS = 0;
         }
-
 
         //vInReading = analogRead(vInPin);
         vOutReading = analogRead(vOutPin);
@@ -318,13 +302,13 @@ void loop() {
         Serial.println ( iterations, DEC );
         iterations = 0;
         Serial.println ( "sync" );
-        file.sync();
+        logFile.sync();
         rawFile.sync();
         lastMillis2 = currentMillis;
     }
 
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
-        file.close();
+        logFile.close();
         rawFile.close();
         Serial.println("Done");
         move_to ( 2, 0 );
@@ -338,8 +322,6 @@ void loop() {
             if ( brightness > 157 ) {
                 brightness = 157;
             }
-            Serial.print ( "bright: " );
-            Serial.println ( brightness, DEC );
             lcdSerial.print ( 0x7C, BYTE );
             lcdSerial.print ( brightness, BYTE );
         }
@@ -350,8 +332,6 @@ void loop() {
             if ( brightness < 128 ) {
                 brightness = 128;
             }
-            Serial.print ( "bright: " );
-            Serial.println ( brightness, DEC );
             lcdSerial.print ( 0x7C, BYTE );
             lcdSerial.print ( brightness, BYTE );
         }
@@ -368,8 +348,8 @@ void loop() {
 
 void clear_lcd(void)
 {
-    lcdSerial.print(COMMAND,BYTE);
-    lcdSerial.print(CLEAR,BYTE);
+    lcdSerial.print(LCD_COMMAND,BYTE);
+    lcdSerial.print(LCD_CLEAR,BYTE);
 }  
 
 void move_to ( int row, int column ) {
@@ -378,7 +358,7 @@ void move_to ( int row, int column ) {
     commandChar += column;
         /* set the high 7 bit to 1 per the spec */
     commandChar |= 0x80;
-    lcdSerial.print(COMMAND,BYTE);
+    lcdSerial.print(LCD_COMMAND,BYTE);
     lcdSerial.print(commandChar,BYTE);
 }
 
@@ -411,7 +391,7 @@ void init_logger() {
         if (sd.exists(name)) {
             continue;
         }
-        if ( file.open ( name, O_WRITE | O_CREAT ) ) {
+        if ( logFile.open ( name, O_WRITE | O_CREAT ) ) {
             break;
         } else {
             Serial.print ( "Failed opening file: " );

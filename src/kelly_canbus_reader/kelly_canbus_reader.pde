@@ -243,19 +243,19 @@ void loop() {
         move_to ( 3, 5 );
         lcdPrintFloat ( tripDistance_GPS, 6, 2 );
         move_to ( 3, 12 );
-        printDigits ( lcdSerial, hour ( currentTime ) );
+        printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
             // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
         move_to ( 3, 14 );
         lcdSerial.print ( ":" );
-        printDigits ( lcdSerial, minute ( currentTime ) );
+        printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
         lcdSerial.print ( ":" );
-        printDigits ( lcdSerial, second ( currentTime ) );
+        printIntLeadingZero ( lcdSerial, second ( currentTime ) );
 
         printLong ( *stream, currentMillis, DEC );
         printInt ( *stream, tDiffMillis, DEC );
         printLong ( *stream, kellyCanbus.count, DEC );
-        printDigits ( *stream, year ( currentTime ) ); printDigits ( *stream, month ( currentTime ) ); printDigits ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
-        printDigits ( *stream, hour ( currentTime ) ); printDigits ( *stream, minute ( currentTime ) ); printDigits ( *stream, second ( currentTime )); printString ( *stream, COMMA );
+        printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
+        printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
         printFloat ( *stream, fmph, 2 );
         printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
         printFloat ( *stream, kellyCanbus.getTractionPackVoltage(), 3 );
@@ -441,7 +441,7 @@ time_t gpsTimeToArduinoTime(){
   return time + (TIMEZONEOFFSET * SECS_PER_HOUR);
 }
 
-void printDigits ( Print &stream, int digits ) {
+void printIntLeadingZero ( Print &stream, int digits ) {
   if ( digits < 10 ) {
       stream.print ( '0' );
   }

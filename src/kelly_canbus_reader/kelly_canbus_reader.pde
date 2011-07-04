@@ -4,6 +4,7 @@
 #include <NewSoftSerial.h>
 #include <KellyCanbus.h>
 #include <Time.h>
+#include <avr/pgmspace.h>
 
 
 SdFat sd;
@@ -80,6 +81,30 @@ float vOut;
 float z2;
 float c;
 
+char buffer[20];
+const char str00[] PROGMEM = "TangoLogger";
+const char str01[] PROGMEM = "Free RAM: ";
+const char str02[] PROGMEM = "CAN Init...";
+const char str03[] PROGMEM = "OK";
+const char str04[] PROGMEM = "FAIL";
+const char str05[] PROGMEM = "Log Files...";
+const char str06[] PROGMEM = "MPH:";
+const char str07[] PROGMEM = "C:";
+const char str08[] PROGMEM = "WM:";
+const char str09[] PROGMEM = "MK:";
+const char str10[] PROGMEM = "Trip:";
+const char str11[] PROGMEM = "NO CANBUS";
+const char str12[] PROGMEM = "KellyCanbus.count: ";
+const char str13[] PROGMEM = "Total iterations: ";
+const char str14[] PROGMEM = "Syncing files";
+const char str15[] PROGMEM = "DONE";
+const char str16[] PROGMEM = "No More Files";
+const char str17[] PROGMEM = "Failed opening log file: ";
+const char str18[] PROGMEM = "Failed opening raw file: ";
+const char str19[] PROGMEM = "LogFile: ";
+PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
+                                  str10, str11, str12, str13, str14, str15, str16, str17, str18, str19 };
+
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
 
@@ -104,47 +129,47 @@ void setup() {
     digitalWrite(LEFT, HIGH);
     digitalWrite(RIGHT, HIGH);
     digitalWrite(CLICK, HIGH);
+    analogReference(DEFAULT);
     //digitalWrite(vOutPin, HIGH );
   
     Serial.begin(115200);
-    Serial.println("Kelly KBLI/HP Logger");  /* For debug use */
+    printString_P ( Serial, 0 );
     
-    analogReference(DEFAULT);
     setSyncProvider(gpsTimeToArduinoTime);
 
     clear_lcd();
     move_to ( 0, 0 );
-    lcdSerial.print ( "TangoLogger Init" );
+    printString_P ( lcdSerial,  0 ); // TangoLogger Init
     move_to ( 2, 0 );
-    lcdSerial.print ( "Free Ram: " );
+    printString_P ( lcdSerial, 1 ); // Free Ram
     lcdSerial.print ( FreeRam() );
+    delay ( 500 );
     move_to ( 1, 0 );
-    lcdSerial.print ( "CAN Init " );
+    printString_P ( lcdSerial, 2 ); // CAN INIt
     if(kellyCanbus.init()) {
-        lcdSerial.print("OK");
+        printString_P ( lcdSerial, 3 ); // OK
     } else {
-        lcdSerial.print("Failed");
+        printString_P ( lcdSerial, 4 ); // FAILED
     } 
     delay ( 500 );
 
     move_to ( 1, 0 );
-    lcdSerial.print ( "Log files...          " );
+    printString_P ( lcdSerial, 5 ); // Log Files
     init_logger();
-    Serial.print ( "FreeRam: " ); Serial.println ( FreeRam() );
+    printString_P ( Serial, 1 ); 
+    Serial.println ( FreeRam() );
 
     clear_lcd();
     move_to ( 0, 0 );
-    lcdSerial.print ( "MPH:" );
+    printString_P ( lcdSerial, 6 ); // MPH:
     move_to ( 1, 0 );
-    lcdSerial.print ( "C:" );
-    //move_to ( 1, 10 );
-    //lcdSerial.print ( "i:" );
+    printString_P ( lcdSerial, 7 ); // C:
     move_to ( 2, 0 );
-    lcdSerial.print ( "wm:" );
+    printString_P ( lcdSerial, 8 ); // WM:
     move_to ( 2, 10 );
-    lcdSerial.print ( "mk:" );
+    printString_P ( lcdSerial, 9 ); // WM:
     move_to ( 3, 0 );
-    lcdSerial.print ( "Trip:" );
+    printString_P ( lcdSerial, 10 ); // Trip:
 }
 
 void loop() {
@@ -212,7 +237,7 @@ void loop() {
             lcdPrintFloat ( kellyCanbus.getMPHFromRPM(), 4, 1 );
             lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 7, 2 );
         } else {
-            lcdSerial.print ( "NO CAN-BUS!" );
+            printString_P ( lcdSerial, 11 ); // NO CANBUS
         }
 
         move_to ( 1, 2 );
@@ -240,6 +265,7 @@ void loop() {
         printLong ( *stream, currentMillis, DEC );
         printInt ( *stream, tDiffMillis, DEC );
         printLong ( *stream, kellyCanbus.count, DEC );
+        printLong ( *stream, iterations, DEC );
         printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
         printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
         printFloat ( *stream, fmph, 2 );
@@ -282,12 +308,12 @@ void loop() {
     rawFile.println();
 
     if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
-        Serial.print ( "count: " );
-        Serial.print ( kellyCanbus.count, DEC );
-        Serial.print ( ", iterations: " );
+        printString_P ( Serial, 12 ); // kellyCanbus.count
+        Serial.println ( kellyCanbus.count, DEC );
+        printString_P ( Serial, 13 ); // iterations
         Serial.println ( iterations, DEC );
         iterations = 0;
-        Serial.println ( "sync" );
+        printlnString_P ( Serial, 14 );
         logFile.sync();
         rawFile.sync();
         lastMillis2 = currentMillis;
@@ -296,9 +322,9 @@ void loop() {
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
         logFile.close();
         rawFile.close();
-        Serial.println("Done");
         move_to ( 2, 0 );
-        lcdSerial.print("DONE");
+        printString_P ( lcdSerial, 15 );
+        printlnString_P ( Serial, 15 );
         while ( 1 ) {
         }
     } else if (digitalRead(UP) == 0) {  /* Check for Click button */
@@ -364,8 +390,8 @@ void init_logger() {
         if ( i == 65530 ) {
             clear_lcd();
             move_to ( 0,0 );
-            Serial.println ( "No more filenames!" );
-            lcdSerial.print ( "No more filenames!" );
+            printlnString_P ( Serial, 16 ); // No more files
+            printString_P ( lcdSerial, 16 ); // No more files
             while ( 1 ) {
             }
         }
@@ -380,27 +406,26 @@ void init_logger() {
         if ( logFile.open ( name, O_WRITE | O_CREAT ) ) {
             break;
         } else {
-            Serial.print ( "Failed opening file: " );
+            printString_P ( Serial, 17 ); // Failed opening file
             Serial.println ( name );
             move_to ( 1, 0 );
-            lcdSerial.print ( "Failed opening file" );
+            printString_P ( lcdSerial, 17 ); // Failed opening file
             error ( "file.open" );
         }
     }
     name[6] = 'R';
     name[7] = 'W';
     if ( ! rawFile.open ( name, O_WRITE | O_CREAT ) ) {
-        Serial.print ( "Failed opening raw file: " );
+        printString_P ( Serial, 18 ); // Failed opening raw file
         Serial.print ( name );
         move_to ( 1, 0 );
-        lcdSerial.print ( "Failed opening file" );
+        printString_P ( lcdSerial, 18 ); // Failed opening raw file
         error ( "file.open" );
     }
-    Serial.println ( "Successfully inited log files." );
-    Serial.print ( "raw log file name: " );
+    printString_P ( Serial, 3 );
     Serial.println ( name );
     move_to ( 1, 0 );
-    lcdSerial.print ( "LogFile: " );
+    printString_P ( lcdSerial, 19 );
     lcdSerial.print ( name );
     delay ( 500 );
 }
@@ -457,6 +482,17 @@ void printString ( Print &stream, char *s ) {
 void printLine ( Print &stream ) {
     stream.println();
 }
+
+void printString_P ( Print &stream, int index ) {
+    strcpy_P ( buffer, (char*)pgm_read_word ( &(strings[index]) ) );
+    stream.print ( buffer );
+}
+
+void printlnString_P ( Print &stream, int index ) {
+    printString_P ( stream, index );
+    stream.println();
+}
+
 
 void lcdPrintFloat ( float f, uint8_t padding, uint8_t places ) {
     uint8_t count = 0;

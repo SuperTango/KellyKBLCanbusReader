@@ -6,10 +6,14 @@
 #include <Time.h>
 #include <avr/pgmspace.h>
 
+#define STATE_GATHERDATA 1
+#define STATE_TRANSFERFILES 2
+
 
 SdFat sd;
 SdFile logFile;
 SdFile rawFile;
+SdFile readFile;
 
 //Print *stream = &Serial;
 Print *stream = &logFile;
@@ -81,7 +85,10 @@ float vOut;
 float z2;
 float c;
 
-char buffer[20];
+#define MAX_BUFSIZE 25
+uint8_t buf_index;
+char *buf_ptr;
+char buffer[MAX_BUFSIZE];
 const char str00[] PROGMEM = "TangoLogger";
 const char str01[] PROGMEM = "Free RAM: ";
 const char str02[] PROGMEM = "CAN Init...";
@@ -153,6 +160,10 @@ void setup() {
     } 
     delay ( 500 );
 
+    initMainLogLoop();
+}
+
+void initMainLogLoop() {
     move_to ( 1, 0 );
     printString_P ( lcdSerial, 5 ); // Log Files
     init_logger();
@@ -173,6 +184,34 @@ void setup() {
 }
 
 void loop() {
+    buf_ptr = buffer;
+    if ( Serial.available() ) {
+        Serial.println ( "GOT DATA" );
+        while ( Serial.available() ) {
+            *buf_ptr = Serial.read();
+            if ( ( *buf_ptr == '\r' ) || ( *buf_ptr == '\n' ) ) {
+                    Serial.println ( "GOT CRLF" );
+                *buf_ptr = NULL;
+            }
+            buf_ptr++;
+        }
+        *buf_ptr = NULL;
+        Serial.print ( "COMMAND: " );
+        Serial.println ( buffer );
+
+        if ( readFile.open ( "00050-LG.CSV" ) ) {
+            Serial.print ( "Size: " );
+            Serial.println ( readFile.fileSize(), DEC );
+            int16_t n; 
+            uint8_t buf[7];// nothing special about 7, just a lucky number. 
+            while ((n = readFile.read(buf, sizeof(buf))) > 0) { 
+                for (uint8_t i = 0; i < n; i++) {
+                    Serial.print(buf[i]);
+                }
+            }
+            readFile.close();
+        }
+    }
     iterations++;
     currentMillis = millis();
     time_t currentTime;

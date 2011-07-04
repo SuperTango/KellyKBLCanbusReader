@@ -14,8 +14,8 @@ SdFile rawFile;
 //Print *stream = &Serial;
 Print *stream = &logFile;
 
-NewSoftSerial lcdSerial = NewSoftSerial(3, 6);
-NewSoftSerial gpsSerial = NewSoftSerial(4, 5);
+NewSoftSerial lcdSerial = NewSoftSerial(-1, 6);
+NewSoftSerial gpsSerial = NewSoftSerial(4, -1);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
 #define TIMEZONEOFFSET -7
 #define LCD_COMMAND 0xFE

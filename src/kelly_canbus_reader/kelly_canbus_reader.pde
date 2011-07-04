@@ -1,18 +1,4 @@
-/* Welcome to the ECU Reader project. This sketch uses the Canbus library.
-It requires the CAN-bus shield for the Arduino. This shield contains the MCP2515 CAN controller and the MCP2551 CAN-bus driver.
-A connector for an EM406 GPS receiver and an uSDcard holder with 3v level convertor for use in data logging applications.
-The output data can be displayed on a serial LCD.
-
-The SD test functions requires a FAT16 formated card with a text file of WRITE00.TXT in the card.
-
-
-SK Pang Electronics www.skpang.co.uk
-
-v3.0 21-02-11  Use library from Adafruit for sd card instead.
-
-*/
-
-#include <SdFat.h>        /* Library from Adafruit.com */
+#include <SdFat.h>
 #include <SdFatUtil.h>
 #include <TinyGPS.h>
 #include <NewSoftSerial.h>

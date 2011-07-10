@@ -155,13 +155,13 @@ void setup() {
     setSyncProvider(gpsTimeToArduinoTime);
 
     clear_lcd();
-    move_to ( 0, 0 );
+    lcd_move_to ( 0, 0 );
     printString_P ( lcdSerial,  0 ); // TangoLogger Init
-    move_to ( 2, 0 );
+    lcd_move_to ( 2, 0 );
     printString_P ( lcdSerial, 1 ); // Free Ram
     lcdSerial.print ( FreeRam() );
     delay ( 500 );
-    move_to ( 1, 0 );
+    lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 2 ); // CAN INIt
     if(kellyCanbus.init()) {
         printString_P ( lcdSerial, 3 ); // OK
@@ -174,28 +174,28 @@ void setup() {
 }
 
 void initMainLogLoop() {
-    move_to ( 1, 0 );
+    lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 5 ); // Log Files
     init_logger();
     printString_P ( Serial, 1 ); 
     Serial.println ( FreeRam() );
 
     clear_lcd();
-    move_to ( 0, 0 );
+    lcd_move_to ( 0, 0 );
     printString_P ( lcdSerial, 20 ); // B+
-    move_to ( 0, 15 );
+    lcd_move_to ( 0, 15 );
     lcdSerial.print ( "!" );
-    move_to ( 1, 0 );
+    lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 7 ); // C:
     /*
     printString_P ( lcdSerial, 6 ); // MPH:
-    move_to ( 1, 0 );
+    lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 7 ); // C:
-    move_to ( 2, 0 );
+    lcd_move_to ( 2, 0 );
     printString_P ( lcdSerial, 8 ); // WM:
-    move_to ( 2, 10 );
+    lcd_move_to ( 2, 10 );
     printString_P ( lcdSerial, 9 ); // WM:
-    move_to ( 3, 0 );
+    lcd_move_to ( 3, 0 );
     printString_P ( lcdSerial, 10 ); // Trip:
     */
 }
@@ -266,9 +266,9 @@ void loop() {
 
         currentTime = now();
 /*
-        move_to ( 0, 4 );
+        lcd_move_to ( 0, 4 );
         lcdPrintFloat ( fmph, 4, 1 );
-        move_to ( 0, 9 );
+        lcd_move_to ( 0, 9 );
         if ( kellyCanbus.available ) {
             lcdPrintFloat ( kellyCanbus.getMPHFromRPM(), 4, 1 );
             lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 7, 2 );
@@ -277,7 +277,7 @@ void loop() {
         }
 */        
 
-        move_to ( 0, 3 );
+        lcd_move_to ( 0, 3 );
         lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 6, 2 );
         lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 5, 2 );
 
@@ -309,31 +309,31 @@ void loop() {
             }
 
             if ( ! error ) {
-                move_to ( 0, 15 );
+                lcd_move_to ( 0, 15 );
                 lcdSerial.print ( " " );
             }
             logFiles_open = true;
         }
 
-        move_to ( 1, 2 );
+        lcd_move_to ( 1, 2 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
         lcdPrintFloat ( c, 5, 1 );
         lcdPrintInt ( kellyCanbus.count, 6, DEC );
         /*
-        move_to ( 1, 16 );
+        lcd_move_to ( 1, 16 );
         lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 4, 2 );
 
-        move_to ( 2, 3 );
+        lcd_move_to ( 2, 3 );
         lcdPrintFloat ( whPerMile_GPS, 6, 2 );
-        move_to ( 2, 13 );
+        lcd_move_to ( 2, 13 );
         lcdPrintFloat ( milesPerKwh_GPS, 6, 2 );
 
-        move_to ( 3, 5 );
+        lcd_move_to ( 3, 5 );
         lcdPrintFloat ( tripDistance_GPS, 6, 2 );
-        move_to ( 3, 12 );
+        lcd_move_to ( 3, 12 );
         printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
             // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
-        move_to ( 3, 14 );
+        lcd_move_to ( 3, 14 );
         lcdSerial.print ( ":" );
         printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
         lcdSerial.print ( ":" );
@@ -406,7 +406,7 @@ void loop() {
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
         logFile.close();
         rawFile.close();
-        move_to ( 1, 0 );
+        lcd_move_to ( 1, 0 );
         printString_P ( lcdSerial, 15 ); // DONE
         printlnString_P ( Serial, 15 ); // DONE
         while ( 1 ) {
@@ -448,7 +448,7 @@ void clear_lcd(void)
     lcdSerial.print(LCD_CLEAR,BYTE);
 }  
 
-void move_to ( int row, int column ) {
+void lcd_move_to ( int row, int column ) {
     int commandChar;
     commandChar = baseChars20Column[row];
     commandChar += column;
@@ -486,7 +486,7 @@ void init_logger() {
     Serial.print ( "file_num" );
     Serial.println ( file_num, DEC );
 
-    move_to ( 1, 0 );
+    lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 19 );
     lcdSerial.print ( file_num, DEC );
     delay ( 500 );

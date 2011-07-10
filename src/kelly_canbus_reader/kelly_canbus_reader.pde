@@ -197,37 +197,12 @@ void initMainLogLoop() {
     printString_P ( lcdSerial, 9 ); // WM:
     move_to ( 3, 0 );
     printString_P ( lcdSerial, 10 ); // Trip:
+    */
 }
 
 void loop() {
-    buf_ptr = buffer;
-    if ( Serial.available() ) {
-        Serial.println ( "GOT DATA" );
-        while ( Serial.available() ) {
-            *buf_ptr = Serial.read();
-            if ( ( *buf_ptr == '\r' ) || ( *buf_ptr == '\n' ) ) {
-                    Serial.println ( "GOT CRLF" );
-                *buf_ptr = NULL;
-            }
-            buf_ptr++;
-        }
-        *buf_ptr = NULL;
-        Serial.print ( "COMMAND: " );
-        Serial.println ( buffer );
+    processSerial();
 
-        if ( readFile.open ( "00050-LG.CSV" ) ) {
-            Serial.print ( "Size: " );
-            Serial.println ( readFile.fileSize(), DEC );
-            int16_t n; 
-            uint8_t buf[7];// nothing special about 7, just a lucky number. 
-            while ((n = readFile.read(buf, sizeof(buf))) > 0) { 
-                for (uint8_t i = 0; i < n; i++) {
-                    Serial.print(buf[i]);
-                }
-            }
-            readFile.close();
-        }
-    }
     iterations++;
     currentMillis = millis();
     time_t currentTime;
@@ -630,4 +605,47 @@ void create_filename ( int num ) {
     buffer[2] = num % 1000 / 100 + '0';
     buffer[3] = num % 100 / 10 + '0';
     buffer[4] = num % 10 + '0';
+}
+
+void processSerial() {
+    buf_ptr = buffer;
+    if ( Serial.available() ) {
+        while ( Serial.available() ) {
+            *buf_ptr = Serial.read();
+            if ( ( *buf_ptr == '\r' ) || ( *buf_ptr == '\n' ) ) {
+                *buf_ptr = NULL;
+            }
+            buf_ptr++;
+        }
+        *buf_ptr = NULL;
+        Serial.print ( "COMMAND: " );
+        Serial.println ( buffer );
+        if ( buffer[0] == 'L' ) {
+            dir_t entry;
+            Serial.println ( "START" );
+            for (int i = 0; i <= file_num; i++) {
+                create_filename ( i );
+                for ( uint8_t j = 0; j < 2; j++ ) {
+                    if ( j == 1 ) {
+                        buffer[6] = 'R';
+                        buffer[7] = 'W';
+                    }
+
+                    if ( readFile.open ( buffer ) ) {
+                        readFile.dirEntry ( &entry );
+                        Serial.print ( buffer );
+                        Serial.print ( COMMA );
+                        Serial.print ( entry.lastWriteDate );
+                        Serial.print ( COMMA );
+                        Serial.print ( entry.lastWriteTime );
+                        Serial.print ( COMMA );
+                        Serial.print ( entry.fileSize );
+                        Serial.println();
+                        readFile.close();
+                    }
+                }
+            }
+            Serial.println ( "END" );
+        } 
+    }
 }

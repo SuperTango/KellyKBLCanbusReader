@@ -116,8 +116,11 @@ const char str16[] PROGMEM = "No More Files";
 const char str17[] PROGMEM = "Failed opening log file: ";
 const char str18[] PROGMEM = "Failed opening raw file: ";
 const char str19[] PROGMEM = "LogFile: ";
+const char str20[] PROGMEM = "B+:";
+const char str21[] PROGMEM = "00000-LG.CSV";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
-                                  str10, str11, str12, str13, str14, str15, str16, str17, str18, str19 };
+                                    str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
+                                    str20, str21  };
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
@@ -179,6 +182,12 @@ void initMainLogLoop() {
 
     clear_lcd();
     move_to ( 0, 0 );
+    printString_P ( lcdSerial, 20 ); // B+
+    move_to ( 0, 15 );
+    lcdSerial.print ( "!" );
+    move_to ( 1, 0 );
+    printString_P ( lcdSerial, 7 ); // C:
+    /*
     printString_P ( lcdSerial, 6 ); // MPH:
     move_to ( 1, 0 );
     printString_P ( lcdSerial, 7 ); // C:
@@ -281,7 +290,7 @@ void loop() {
         //f = c * 9 / 5 + 32;
 
         currentTime = now();
-
+/*
         move_to ( 0, 4 );
         lcdPrintFloat ( fmph, 4, 1 );
         move_to ( 0, 9 );
@@ -291,6 +300,11 @@ void loop() {
         } else {
             printString_P ( lcdSerial, 11 ); // NO CANBUS
         }
+*/        
+
+        move_to ( 0, 3 );
+        lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 6, 2 );
+        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 5, 2 );
 
         if ( ( should_log == true ) && ( logFiles_open == false ) ) {
             bool error = false;
@@ -328,7 +342,9 @@ void loop() {
 
         move_to ( 1, 2 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
-        lcdPrintFloat ( c, 6, 1 );
+        lcdPrintFloat ( c, 5, 1 );
+        lcdPrintInt ( kellyCanbus.count, 6, DEC );
+        /*
         move_to ( 1, 16 );
         lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 4, 2 );
 
@@ -415,9 +431,9 @@ void loop() {
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
         logFile.close();
         rawFile.close();
-        move_to ( 2, 0 );
-        printString_P ( lcdSerial, 15 );
-        printlnString_P ( Serial, 15 );
+        move_to ( 1, 0 );
+        printString_P ( lcdSerial, 15 ); // DONE
+        printlnString_P ( Serial, 15 ); // DONE
         while ( 1 ) {
         }
     } else if (digitalRead(UP) == 0) {  /* Check for Click button */

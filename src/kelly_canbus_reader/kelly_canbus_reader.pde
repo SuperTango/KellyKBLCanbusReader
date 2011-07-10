@@ -154,7 +154,7 @@ void setup() {
     
     setSyncProvider(gpsTimeToArduinoTime);
 
-    clear_lcd();
+    lcd_clear();
     lcd_move_to ( 0, 0 );
     printString_P ( lcdSerial,  0 ); // TangoLogger Init
     lcd_move_to ( 2, 0 );
@@ -180,7 +180,7 @@ void initMainLogLoop() {
     printString_P ( Serial, 1 ); 
     Serial.println ( FreeRam() );
 
-    clear_lcd();
+    lcd_clear();
     lcd_move_to ( 0, 0 );
     printString_P ( lcdSerial, 20 ); // B+
     lcd_move_to ( 0, 15 );
@@ -442,7 +442,7 @@ void loop() {
  */
 }
 
-void clear_lcd(void)
+void lcd_clear(void)
 {
     lcdSerial.print(LCD_COMMAND,BYTE);
     lcdSerial.print(LCD_CLEAR,BYTE);

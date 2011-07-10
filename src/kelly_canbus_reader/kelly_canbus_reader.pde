@@ -535,11 +535,11 @@ void printlnString_P ( Print &stream, int index ) {
 
 void lcdPrintFloat ( float f, uint8_t padding, uint8_t places ) {
     uint8_t count = 0;
-    if ( ( f / 1000 ) > 0 ) {
+    if ( int ( f / 1000 ) > 0 ) {
         count = 4;
-    } else if ( ( f / 100 ) > 0 ) {
+    } else if ( int ( f / 100 ) > 0 ) {
         count = 3;
-    } else if ( ( f / 10 ) > 0 ) {
+    } else if ( int ( f / 10 ) > 0 ) {
         count = 2;
     } else {
         count = 1;
@@ -556,11 +556,11 @@ void lcdPrintFloat ( float f, uint8_t padding, uint8_t places ) {
 
 void lcdPrintInt ( long l, uint8_t padding, uint8_t type ) {
     uint8_t count = 0;
-    if ( ( l / 1000 ) > 0 ) {
+    if ( int ( l / 1000 ) > 0 ) {
         count = 4;
-    } else if ( ( l / 100 ) > 0 ) {
+    } else if ( int ( l / 100 ) > 0 ) {
         count = 3;
-    } else if ( ( l / 10 ) > 0 ) {
+    } else if ( int ( l / 10 ) > 0 ) {
         count = 2;
     } else {
         count = 1;

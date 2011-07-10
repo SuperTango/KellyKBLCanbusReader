@@ -17,6 +17,8 @@ SdFile readFile;
 
 //Print *stream = &Serial;
 Print *stream = &logFile;
+bool logFiles_open = false;
+bool should_log = false;
 
 NewSoftSerial lcdSerial = NewSoftSerial(-1, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, -1);
@@ -248,6 +250,12 @@ void loop() {
         }
         kellyCanbus.fetchAllRuntimeData();
         tDiffMillis = currentMillis - lastFullReadMillis;
+        //Serial.print ( "rpm: " );
+        //Serial.println ( kellyCanbus.rpm, DEC );
+        if ( ( should_log == false ) && ( kellyCanbus.rpm > 0 ) ) {
+            should_log = true;
+            Serial.println ( "shouldLog-> true" );
+        }
         //distance_RPM = kellyCanbus.rpm * 80.296 (circumference in inches/rev) * 1.04530931800 (adjustment factor) / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
         //distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
         if ( distance_GPS > 0 ) {
@@ -279,6 +287,40 @@ void loop() {
             printString_P ( lcdSerial, 11 ); // NO CANBUS
         }
 
+        if ( ( should_log == true ) && ( logFiles_open == false ) ) {
+            bool error = false;
+            //Serial.println ( "Opening files!" );
+            create_filename ( file_num );
+            Serial.print ( "Trying to open: " );
+            Serial.print ( buffer );
+            if ( ! logFile.open ( buffer, O_WRITE | O_CREAT ) ) {
+                // TODO: What now?
+                error = true;
+                Serial.println ( ": FAIL" );
+                error ( "file.open" );
+            } else {
+                Serial.println ( ": OK" );
+            }
+            buffer[6] = 'R';
+            buffer[7] = 'W';
+            Serial.print ( "Trying to open: " );
+            Serial.print ( buffer );
+            if ( ! rawFile.open ( buffer, O_WRITE | O_CREAT ) ) {
+                // TODO: What now?
+                error = true;
+                Serial.println ( ": FAIL" );
+                error ( "file.open" );
+            } else {
+                Serial.println ( ": OK" );
+            }
+
+            if ( ! error ) {
+                move_to ( 0, 15 );
+                lcdSerial.print ( " " );
+            }
+            logFiles_open = true;
+        }
+
         move_to ( 1, 2 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
         lcdPrintFloat ( c, 6, 1 );
@@ -300,32 +342,35 @@ void loop() {
         printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
         lcdSerial.print ( ":" );
         printIntLeadingZero ( lcdSerial, second ( currentTime ) );
+        */
 
-        printLong ( *stream, currentMillis, DEC );
-        printInt ( *stream, tDiffMillis, DEC );
-        printLong ( *stream, kellyCanbus.count, DEC );
-        printLong ( *stream, iterations, DEC );
-        printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
-        printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
-        printFloat ( *stream, fmph, 2 );
-        printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
-        printFloat ( *stream, kellyCanbus.getTractionPackVoltage(), 3 );
-        printFloat ( *stream, flat, 5 );
-        printFloat ( *stream, flon, 5 );
-        printFloat ( *stream, fcourse, 2 );
-        printFloat ( *stream, distance_GPS, 5 );
-        printFloat ( *stream, kellyCanbus.iAvg, 4 );
-        printFloat ( *stream, kellyCanbus.vAvg, 4 );
-        printFloat ( *stream, kellyCanbus.wAvg, 4 );
-        printFloat ( *stream, whPerMile_GPS, 5 );
-        printFloat ( *stream, milesPerKwh_GPS, 5 );
-        printFloat ( *stream, c, 2 );
-        printInt ( *stream, vOutReading, DEC );
+        if ( should_log ) {
+            printLong ( *stream, currentMillis, DEC );
+            printInt ( *stream, tDiffMillis, DEC );
+            printLong ( *stream, kellyCanbus.count, DEC );
+            printLong ( *stream, iterations, DEC );
+            printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
+            printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
+            printFloat ( *stream, fmph, 2 );
+            printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
+            printFloat ( *stream, kellyCanbus.getTractionPackVoltage(), 3 );
+            printFloat ( *stream, flat, 5 );
+            printFloat ( *stream, flon, 5 );
+            printFloat ( *stream, fcourse, 2 );
+            printFloat ( *stream, distance_GPS, 5 );
+            printFloat ( *stream, kellyCanbus.iAvg, 4 );
+            printFloat ( *stream, kellyCanbus.vAvg, 4 );
+            printFloat ( *stream, kellyCanbus.wAvg, 4 );
+            printFloat ( *stream, whPerMile_GPS, 5 );
+            printFloat ( *stream, milesPerKwh_GPS, 5 );
+            printFloat ( *stream, c, 2 );
+            printInt ( *stream, vOutReading, DEC );
 
-        for ( int i = 0; i < 22; i++ ) {
-            printInt ( *stream, kellyCanbus.rawData[i], DEC );
+            for ( int i = 0; i < 22; i++ ) {
+                printInt ( *stream, kellyCanbus.rawData[i], DEC );
+            }
+            printLine ( *stream );
         }
-        printLine ( *stream );
         lastFullReadMillis = currentMillis;
             // reset distance_GPS in case we do another round before getting another
             // set of GPS data, we don't re-calcualte wh/mi with a bogus distance_GPS.
@@ -338,13 +383,15 @@ void loop() {
         /*
          * always write the raw current and voltage info to the raw file.
          */
-    rawFile.print ( currentMillis, DEC );
-    rawFile.print ( COMMA );
-    for ( int i = CCP_A2D_BATCH_READ2_OFFSET; i < CCP_A2D_BATCH_READ2_OFFSET + 6; i++ ) {
-        rawFile.print ( kellyCanbus.rawData[i], DEC );
+    if ( should_log ) {
+        rawFile.print ( currentMillis, DEC );
         rawFile.print ( COMMA );
+        for ( int i = CCP_A2D_BATCH_READ2_OFFSET; i < CCP_A2D_BATCH_READ2_OFFSET + 6; i++ ) {
+            rawFile.print ( kellyCanbus.rawData[i], DEC );
+            rawFile.print ( COMMA );
+        }
+        rawFile.println();
     }
-    rawFile.println();
 
     if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
         printString_P ( Serial, 12 ); // kellyCanbus.count
@@ -352,7 +399,9 @@ void loop() {
         printString_P ( Serial, 13 ); // iterations
         Serial.println ( iterations, DEC );
         iterations = 0;
-        printlnString_P ( Serial, 14 );
+        if ( should_log ) {
+            printlnString_P ( Serial, 14 );
+        }
         logFile.sync();
         rawFile.sync();
         lastMillis2 = currentMillis;
@@ -423,49 +472,27 @@ void init_logger() {
     SdFile::dateTimeCallback(dateTime);
 
     Serial.println ( "Searching for files..." );
-    // create a new file
-    char name[] = "00000-LG.CSV";
-    for (int i = 0; i <= 65530; i++) {
-        if ( i == 65530 ) {
-            clear_lcd();
-            move_to ( 0,0 );
-            printlnString_P ( Serial, 16 ); // No more files
-            printString_P ( lcdSerial, 16 ); // No more files
-            while ( 1 ) {
-            }
-        }
-        name[0] = i/10000 + '0';
-        name[1] = i%10000 / 1000 + '0';
-        name[2] = i%1000 / 100 + '0';
-        name[3] = i%100 / 10 + '0';
-        name[4] = i%10 + '0';
-        if (sd.exists(name)) {
-            continue;
-        }
-        if ( logFile.open ( name, O_WRITE | O_CREAT ) ) {
-            break;
+    file_num = offsets[15];
+    uint8_t last;
+    for ( int count = MAX_REPS; count >= 0; count-- ) {
+        create_filename ( file_num );
+        if (sd.exists(buffer)) {
+            last = 1;
+            file_num += offsets[count];
         } else {
-            printString_P ( Serial, 17 ); // Failed opening file
-            Serial.println ( name );
-            move_to ( 1, 0 );
-            printString_P ( lcdSerial, 17 ); // Failed opening file
-            error ( "file.open" );
+            last = -1;
+            file_num -= offsets[count];
         }
     }
-    name[6] = 'R';
-    name[7] = 'W';
-    if ( ! rawFile.open ( name, O_WRITE | O_CREAT ) ) {
-        printString_P ( Serial, 18 ); // Failed opening raw file
-        Serial.print ( name );
-        move_to ( 1, 0 );
-        printString_P ( lcdSerial, 18 ); // Failed opening raw file
-        error ( "file.open" );
+    if ( last == 1 ) {
+        file_num++;
     }
-    printString_P ( Serial, 3 );
-    Serial.println ( name );
+    Serial.print ( "file_num" );
+    Serial.println ( file_num, DEC );
+
     move_to ( 1, 0 );
     printString_P ( lcdSerial, 19 );
-    lcdSerial.print ( name );
+    lcdSerial.print ( file_num, DEC );
     delay ( 500 );
 }
 
@@ -572,4 +599,14 @@ void lcdPrintInt ( long l, uint8_t padding, uint8_t type ) {
         lcdSerial.print ( " " );
     }
     lcdSerial.print ( l, type );
+}
+
+
+void create_filename ( int num ) {
+    strcpy_P ( buffer, (char*)pgm_read_word ( &(strings[21]) ) ); // base filename
+    buffer[0] = num / 10000 + '0';
+    buffer[1] = num % 10000 / 1000 + '0';
+    buffer[2] = num % 1000 / 100 + '0';
+    buffer[3] = num % 100 / 10 + '0';
+    buffer[4] = num % 10 + '0';
 }

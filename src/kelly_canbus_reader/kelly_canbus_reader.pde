@@ -45,6 +45,7 @@ KellyCanbus kellyCanbus = KellyCanbus(1.84);
 int LED2 = 8;
 int LED3 = 7;
 
+uint16_t offsets[] = { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 };
 int brightness = 129;
 
 //int baseChars16Column[4] = { 0, 64, 16, 80 };
@@ -86,6 +87,10 @@ float vOut;
 #define Z1 1000.0
 float z2;
 float c;
+
+uint16_t file_num = 0;
+#define MAX_FILES 65536
+#define MAX_REPS 15
 
 #define MAX_BUFSIZE 25
 uint8_t buf_index;

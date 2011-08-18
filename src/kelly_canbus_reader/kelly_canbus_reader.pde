@@ -456,6 +456,10 @@ void loop() {
             lcdSerial.print ( 0x7C, BYTE );
             lcdSerial.print ( brightness, BYTE );
         }
+    } else if (digitalRead(RIGHT) == 0) {  /* Check for Click button */
+        if ( millis() - lastClickMillis > 1000 ) {
+            lcd_type = ( lcd_type == LCD_TYPE_20X4 ) ? LCD_TYPE_16X2 : LCD_TYPE_20X4;
+        }
     }
 
 /*

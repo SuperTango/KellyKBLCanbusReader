@@ -80,12 +80,12 @@ float whPerMile_GPS;
 //float milesPerKwh_RPM;
 //float whPerMile_RPM;
 
-#define vOutPin A0
-#define vInPin  A1
-//int vInReading;
-int vOutReading;
-//float vIn;
-#define vIn 5.0
+#define MOTOR_THERMISTOR_PIN A0
+#define MOTOR_5V_PIN  A1
+//int motor5VReading;
+int motorThermistorReading;
+//float motor5VActual;
+#define motor5VActual 5.0
 float vOut;
 #define Z1 1000.0
 float z2;
@@ -154,7 +154,7 @@ void setup() {
     digitalWrite(RIGHT, HIGH);
     digitalWrite(CLICK, HIGH);
     analogReference(DEFAULT);
-    //digitalWrite(vOutPin, HIGH );
+    //digitalWrite(MOTOR_THERMISTOR_PIN, HIGH );
   
     Serial.begin(115200);
     printString_P ( Serial, 0 );
@@ -254,7 +254,9 @@ void loop() {
         } else  {
             distance_GPS = 0;
         }
+
         kellyCanbus.fetchAllRuntimeData();
+
         tDiffMillis = currentMillis - lastFullReadMillis;
         //Serial.print ( "rpm: " );
         //Serial.println ( kellyCanbus.rpm, DEC );
@@ -273,11 +275,11 @@ void loop() {
             milesPerKwh_GPS = 0;
         }
 
-        //vInReading = analogRead(vInPin);
-        vOutReading = analogRead(vOutPin);
-        //vIn = 5.0 * (float)vInReading / 1024.0;
-        vOut = vIn / 1024.0 * (float)vOutReading;
-        z2 = ( -1 * vOut * Z1 ) / ( vOut - vIn );
+        //motor5VReading = analogRead(MOTOR_5V_PIN);
+        motorThermistorReading = analogRead(MOTOR_THERMISTOR_PIN);
+        //motor5VActual = 5.0 * (float)motor5VReading / 1024.0;
+        vOut = motor5VActual / 1024.0 * (float)motorThermistorReading;
+        z2 = ( -1 * vOut * Z1 ) / ( vOut - motor5VActual );
         c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
         //f = c * 9 / 5 + 32;
 
@@ -373,7 +375,7 @@ void loop() {
             printFloat ( *stream, whPerMile_GPS, 5 );
             printFloat ( *stream, milesPerKwh_GPS, 5 );
             printFloat ( *stream, c, 2 );
-            printInt ( *stream, vOutReading, DEC );
+            printInt ( *stream, motorThermistorReading, DEC );
 
             for ( int i = 0; i < 22; i++ ) {
                 printInt ( *stream, kellyCanbus.rawData[i], DEC );

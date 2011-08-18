@@ -1,0 +1,23 @@
+OptiFix Bootstrap programmer.
+2011 by Bill Westfield (WestfW)
+
+Starting Program Mode [OK]
+
+Reading signature:950F
+Searching for image...
+  Found "optiboot_atmega328.hex" for atmega328
+  Start address at 7E00
+  Total bytes read: 508
+
+Setting fuses for programming
+  Lock: 3F FFE000  Low: FF FFA000  High: DE FFA800  Ext: 5 FFA400
+
+Programming bootloader: 512 bytes at 0x3F00
+  Commit Page: 3F00:3F00
+  Commit Page: 3F40:3F40
+  Commit Page: 3F80:3F80
+  Commit Page: 3FC0:3FC0
+
+Restoring normal fuses
+  Lock: F FFE000
+

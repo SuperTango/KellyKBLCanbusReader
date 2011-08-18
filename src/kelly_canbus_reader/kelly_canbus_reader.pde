@@ -70,7 +70,7 @@ unsigned long chars;
 float flat, flon, fmph, fcourse;
 float prev_flat, prev_flon;
 float distance_GPS;
-//float distance_RPM;
+float distance_RPM;
 //float lastDistance_RPM;
 float tripDistance_GPS;
 //float tripDistance_RPM;
@@ -265,12 +265,12 @@ void loop() {
         if ( ( should_log == false ) && ( kellyCanbus.rpm > 0 ) ) {
             should_log = true;
         }
-        //distance_RPM = kellyCanbus.rpm * 80.296 (circumference in inches/rev) * 1.04530931800 (adjustment factor) / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
-        //distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
+
+        //distance_RPM = kellyCanbus.rpm * 83.934157 (circumference in inches/rev) * / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
+        distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
         if ( distance_GPS > 0 ) {
             whPerMile_GPS = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance_GPS;
-            milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
-            milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) );
+            milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) * 1000;
         } else {
             whPerMile_GPS = 0;
             milesPerKwh_GPS = 0;

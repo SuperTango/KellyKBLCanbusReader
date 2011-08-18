@@ -7,7 +7,22 @@
 use strict;
 use warnings;
 
-open (A , "../../nogit/LogData/2011_06_22/2011_06_22-12_16_48-log.CSV" )||die;
+my $file = $ARGV[0];
+if ( ! $file ) {
+    die "must provide file as first arg";
+}
+if ( ! -f $file ) {
+    die "file: '$file' does not exist";
+}
+my $outFile = $ARGV[1];
+if ( ! $outFile ) {
+    ( $outFile = $file ) =~ s/csv$/nmea/i;
+}
+if ( -f $outFile ) {
+    #die "output file '$outFile' exists";
+}
+
+open (A , $file )||die $!;
 my $line = <A>;
 my $last = '';
 
@@ -15,13 +30,13 @@ my $last = '';
 #my $c1 = checksum ( $s1 );
 #print "$s1*$c1\n";exit;
 
-my $timeIndex = 4;
+my $dateIndex=4;
+my $timeIndex = 5;
 my $speedIndex = 6;
-my $latIndex = 8;
-my $lonIndex = 9;
-my $distanceIndex = 11;
-my $bearingIndex = 10;
-my $dateIndex=3;
+my $latIndex = 9;
+my $lonIndex = 10;
+my $distanceIndex = 12;
+my $bearingIndex = 11;
 $line = <A>;
 
 while ( $line = <A> ) {

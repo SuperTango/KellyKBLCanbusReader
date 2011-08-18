@@ -9,6 +9,9 @@
 #define STATE_GATHERDATA 1
 #define STATE_TRANSFERFILES 2
 
+#define LCD_TYPE_20X4 0
+#define LCD_TYPE_16X2 1
+uint8_t lcd_type = LCD_TYPE_20X4;
 
 SdFat sd;
 SdFile logFile;
@@ -48,7 +51,7 @@ int LED3 = 7;
 uint16_t offsets[] = { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 };
 int brightness = 129;
 
-//int baseChars16Column[4] = { 0, 64, 16, 80 };
+//uint8_t baseChars16Column[4] = { 0, 64, 16, 80 };
 uint8_t baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long currentMillis;
@@ -102,11 +105,11 @@ const char str02[] PROGMEM = "CAN Init...";
 const char str03[] PROGMEM = "OK";
 const char str04[] PROGMEM = "FAIL";
 const char str05[] PROGMEM = "Log Files...";
-const char str06[] PROGMEM = "MPH:";
+const char str06[] PROGMEM = "S:";
 const char str07[] PROGMEM = "C:";
 const char str08[] PROGMEM = "WM:";
 const char str09[] PROGMEM = "MK:";
-const char str10[] PROGMEM = "Trip:";
+const char str10[] PROGMEM = "D:";
 const char str11[] PROGMEM = "NO CANBUS";
 const char str12[] PROGMEM = "KellyCanbus.count: ";
 const char str13[] PROGMEM = "Total iterations: ";
@@ -116,11 +119,15 @@ const char str16[] PROGMEM = "No More Files";
 const char str17[] PROGMEM = "Failed opening log file: ";
 const char str18[] PROGMEM = "Failed opening raw file: ";
 const char str19[] PROGMEM = "LogFile: ";
-const char str20[] PROGMEM = "B+:";
+const char str20[] PROGMEM = "V:";
 const char str21[] PROGMEM = "00000-LG.CSV";
+const char str22[] PROGMEM = "Does not exist";
+const char str23[] PROGMEM = "START ";
+const char str24[] PROGMEM = "END";
+const char str25[] PROGMEM = "I:";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
-                                    str20, str21  };
+                                    str20, str21, str22, str23, str24, str25  };
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
@@ -170,34 +177,45 @@ void setup() {
     } 
     delay ( 500 );
 
-    initMainLogLoop();
-}
-
-void initMainLogLoop() {
     lcd_move_to ( 1, 0 );
     printString_P ( lcdSerial, 5 ); // Log Files
     init_logger();
     printString_P ( Serial, 1 ); 
     Serial.println ( FreeRam() );
 
+    initLCD();
+}
+
+void initLCD() { 
     lcd_clear();
-    lcd_move_to ( 0, 0 );
-    printString_P ( lcdSerial, 20 ); // B+
-    lcd_move_to ( 0, 15 );
-    lcdSerial.print ( "!" );
-    lcd_move_to ( 1, 0 );
-    printString_P ( lcdSerial, 7 ); // C:
-    /*
-    printString_P ( lcdSerial, 6 ); // MPH:
-    lcd_move_to ( 1, 0 );
-    printString_P ( lcdSerial, 7 ); // C:
-    lcd_move_to ( 2, 0 );
-    printString_P ( lcdSerial, 8 ); // WM:
-    lcd_move_to ( 2, 10 );
-    printString_P ( lcdSerial, 9 ); // WM:
-    lcd_move_to ( 3, 0 );
-    printString_P ( lcdSerial, 10 ); // Trip:
-    */
+    if ( lcd_type == LCD_TYPE_16X2 ) {
+        lcd_move_to ( 0, 0 );
+        printString_P ( lcdSerial, 20 ); // V:
+        lcd_move_to ( 1, 0 );
+        printString_P ( lcdSerial, 7 ); // C:
+        lcd_move_to ( 1, 15 );
+        lcdSerial.print ( "!" );
+    } else {
+        lcd_move_to ( 0, 0 );
+        printString_P ( lcdSerial, 20 ); // V:
+        lcd_move_to ( 0, 13 );
+        printString_P ( lcdSerial, 25 ); // I:
+        
+        lcd_move_to ( 1, 0 );
+        printString_P ( lcdSerial, 8 ); // WM:
+        lcd_move_to ( 1, 10 );
+        printString_P ( lcdSerial, 9 ); // MK:
+
+        lcd_move_to ( 2, 0 );
+        printString_P ( lcdSerial, 6 ); // S:
+        lcd_move_to ( 2, 7 );
+        printString_P ( lcdSerial, 10 ); // D:
+
+        lcd_move_to ( 3, 0 );
+        printString_P ( lcdSerial, 7 ); // C:
+        lcd_move_to ( 2, 19 );
+        lcdSerial.print ( "!" );
+    }
 }
 
 void loop() {
@@ -225,7 +243,6 @@ void loop() {
          * updating the LCD, and writing a record to the primary logFile.
          */
     if ( currentMillis - lastFullReadMillis > 1000 ) {
-
         if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
             distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
             if ( distance_GPS > 10 ) {
@@ -277,68 +294,64 @@ void loop() {
         }
 */        
 
-        lcd_move_to ( 0, 3 );
-        lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 6, 2 );
-        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 5, 2 );
 
         if ( ( should_log == true ) && ( logFiles_open == false ) ) {
             bool error = false;
-            //Serial.println ( "Opening files!" );
             create_filename ( file_num );
-            Serial.print ( "Trying to open: " );
-            Serial.print ( buffer );
             if ( ! logFile.open ( buffer, O_WRITE | O_CREAT ) ) {
                 // TODO: What now?
                 error = true;
-                Serial.println ( ": FAIL" );
                 error ( "file.open" );
-            } else {
-                Serial.println ( ": OK" );
             }
             buffer[6] = 'R';
             buffer[7] = 'W';
-            Serial.print ( "Trying to open: " );
-            Serial.print ( buffer );
             if ( ! rawFile.open ( buffer, O_WRITE | O_CREAT ) ) {
                 // TODO: What now?
                 error = true;
-                Serial.println ( ": FAIL" );
                 error ( "file.open" );
-            } else {
-                Serial.println ( ": OK" );
             }
 
             if ( ! error ) {
-                lcd_move_to ( 0, 15 );
+                if ( lcd_type == LCD_TYPE_16X2 ) {
+                    lcd_move_to ( 1, 15 );
+                } else {
+                    lcd_move_to ( 2, 19 );
+                }
                 lcdSerial.print ( " " );
             }
             logFiles_open = true;
         }
 
-        lcd_move_to ( 1, 2 );
+        lcd_move_to ( 0, 2 );
+        lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 5, 1 );
+        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 5, 2 );
+
+        if ( lcd_type == LCD_TYPE_20X4 ) {
+            lcd_move_to ( 0, 15 );
+            if ( batteryCurrent < 0 ) {
+                lcdPrintFloat ( batteryCurrent, 4, 1 );
+            } else {
+                lcdPrintFloat ( batteryCurrent, 5, 1 );
+            }
+        }
+
+        lcd_move_to ( 1, 3 );
+        //lcdPrintFloat ( whPerMile_GPS, 6, 2 );
+        lcd_move_to ( 1, 13 );
+        //lcdPrintFloat ( milesPerKwh_GPS, 6, 2 );
+        
+        lcd_move_to ( 2, 2 );
+        lcdPrintFloat ( fmph, 4, 1 );
+        lcd_move_to ( 2, 9 );
+        lcdPrintFloat ( tripDistance_GPS, 5, 2 );
+
+        lcd_move_to ( 3, 2 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
         lcdPrintFloat ( c, 5, 1 );
-        lcdPrintInt ( kellyCanbus.count, 6, DEC );
-        /*
-        lcd_move_to ( 1, 16 );
-        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 4, 2 );
-
-        lcd_move_to ( 2, 3 );
-        lcdPrintFloat ( whPerMile_GPS, 6, 2 );
-        lcd_move_to ( 2, 13 );
-        lcdPrintFloat ( milesPerKwh_GPS, 6, 2 );
-
-        lcd_move_to ( 3, 5 );
-        lcdPrintFloat ( tripDistance_GPS, 6, 2 );
-        lcd_move_to ( 3, 12 );
+        lcd_move_to ( 3, 15 );
         printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
-            // odd, if starting before 3,14 and printing past 3,14, weird wrapping occurs.
-        lcd_move_to ( 3, 14 );
         lcdSerial.print ( ":" );
         printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
-        lcdSerial.print ( ":" );
-        printIntLeadingZero ( lcdSerial, second ( currentTime ) );
-        */
 
         if ( should_log ) {
             printLong ( *stream, currentMillis, DEC );

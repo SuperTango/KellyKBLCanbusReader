@@ -684,7 +684,33 @@ void processSerial() {
                     }
                 }
             }
-            Serial.println ( "END" );
-        } 
+            printString_P ( Serial, 24 ); // END
+        } else if ( buffer[0] == 'G' ) {
+            buf_ptr = buffer + 2;
+            if ( readFile.open ( buf_ptr ) ) {
+                printString_P ( Serial, 23 ); // START
+                Serial.print ( buf_ptr );
+                Serial.print ( " " );
+                Serial.println ( readFile.fileSize(), DEC );
+                int16_t n; 
+                while ( ( n = readFile.read ( buffer, MAX_BUFSIZE ) ) > 0 ) { 
+                    for ( uint8_t i = 0; i < n; i++ ) {
+                        Serial.print ( buffer[i] );
+                    }
+                }
+                printString_P ( Serial, 24 ); // END
+                readFile.close();
+            } else {
+                printString_P ( Serial, 4 ); // FAIL
+            }
+        } else if ( buffer[0] == 'D' ) {
+            buf_ptr = buffer + 2;
+            if ( readFile.open ( buf_ptr ) ) {
+                readFile.remove();
+                printString_P ( Serial, 3 ); // OK
+            } else {
+                printString_P ( Serial, 4 ); // FAIL
+            }
+        }
     }
 }

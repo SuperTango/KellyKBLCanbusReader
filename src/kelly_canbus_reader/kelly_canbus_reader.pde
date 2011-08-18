@@ -262,11 +262,8 @@ void loop() {
         kellyCanbus.fetchAllRuntimeData();
 
         tDiffMillis = currentMillis - lastFullReadMillis;
-        //Serial.print ( "rpm: " );
-        //Serial.println ( kellyCanbus.rpm, DEC );
         if ( ( should_log == false ) && ( kellyCanbus.rpm > 0 ) ) {
             should_log = true;
-            Serial.println ( "shouldLog-> true" );
         }
         //distance_RPM = kellyCanbus.rpm * 80.296 (circumference in inches/rev) * 1.04530931800 (adjustment factor) / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
         //distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
@@ -424,7 +421,7 @@ void loop() {
         Serial.println ( iterations, DEC );
         iterations = 0;
         if ( should_log ) {
-            printlnString_P ( Serial, 14 );
+            printlnString_P ( Serial, 14 ); // syncing files.
         }
         logFile.sync();
         rawFile.sync();
@@ -496,17 +493,27 @@ void init_logger() {
     SdFile::dateTimeCallback(dateTime);
 
     Serial.println ( "Searching for files..." );
-    file_num = offsets[15];
+    file_num = offsets[MAX_REPS + 1];
     uint8_t last;
     for ( int count = MAX_REPS; count >= 0; count-- ) {
         create_filename ( file_num );
+        //Serial.print ( "count: " );
+        //Serial.print ( count, DEC );
+        //Serial.print ( ", file_num: " );
+        //Serial.print ( file_num, DEC );
+        //Serial.print ( ", file: " );
+        Serial.print ( buffer );
         if (sd.exists(buffer)) {
             last = 1;
             file_num += offsets[count];
+            Serial.print ( ", exists adding: " );
         } else {
             last = -1;
             file_num -= offsets[count];
+            Serial.print ( ", does not exist, subtracting: " );
         }
+        Serial.print ( offsets[count] , DEC );
+        Serial.println();
     }
     if ( last == 1 ) {
         file_num++;
@@ -626,7 +633,7 @@ void lcdPrintInt ( long l, uint8_t padding, uint8_t type ) {
 }
 
 
-void create_filename ( int num ) {
+void create_filename ( uint16_t num ) {
     strcpy_P ( buffer, (char*)pgm_read_word ( &(strings[21]) ) ); // base filename
     buffer[0] = num / 10000 + '0';
     buffer[1] = num % 10000 / 1000 + '0';
@@ -650,7 +657,7 @@ void processSerial() {
         Serial.println ( buffer );
         if ( buffer[0] == 'L' ) {
             dir_t entry;
-            Serial.println ( "START" );
+            printString_P ( Serial, 23 ); // START
             for (int i = 0; i <= file_num; i++) {
                 create_filename ( i );
                 for ( uint8_t j = 0; j < 2; j++ ) {
@@ -663,9 +670,9 @@ void processSerial() {
                         readFile.dirEntry ( &entry );
                         Serial.print ( buffer );
                         Serial.print ( COMMA );
-                        Serial.print ( entry.lastWriteDate );
+                        SdFile::printFatDate ( entry.lastWriteDate );
                         Serial.print ( COMMA );
-                        Serial.print ( entry.lastWriteTime );
+                        SdFile::printFatTime ( entry.lastWriteTime );
                         Serial.print ( COMMA );
                         Serial.print ( entry.fileSize );
                         Serial.println();

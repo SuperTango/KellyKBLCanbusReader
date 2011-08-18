@@ -91,6 +91,10 @@ float vOut;
 float z2;
 float c;
 
+#define BATTERY_CURRENT_SENSOR_PIN A5
+int batteryCurrentReading = 0;
+float batteryCurrent = 0;
+
 uint16_t file_num = 0;
 #define MAX_FILES 65536
 #define MAX_REPS 15
@@ -282,6 +286,13 @@ void loop() {
         z2 = ( -1 * vOut * Z1 ) / ( vOut - motor5VActual );
         c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
         //f = c * 9 / 5 + 32;
+        
+        batteryCurrentReading = analogRead ( BATTERY_CURRENT_SENSOR_PIN );
+        // conversion from battery current reading to current should be
+        // batteryCurrent= batteryCurrentReading * -0.9638554 + 799.0361446; // For CSLA2DK Backwards
+        batteryCurrent= batteryCurrentReading * 0.9638554 - 799.0361446; // For CSLA2DK Forwards
+        // batteryCurrent= batteryCurrentReading * -05421687 + 449.4578313; // For CSL1EJ Backwards
+        // batteryCurrent= batteryCurrentReading * 0.9638554 - 449.4578313 // For CSLA1EJ Forwards
 
         currentTime = now();
 /*
@@ -369,6 +380,8 @@ void loop() {
             printFloat ( *stream, flon, 5 );
             printFloat ( *stream, fcourse, 2 );
             printFloat ( *stream, distance_GPS, 5 );
+            printFloat ( *stream, batteryCurrentReading, DEC );
+            printFloat ( *stream, batteryCurrent, 5 );
             printFloat ( *stream, kellyCanbus.iAvg, 4 );
             printFloat ( *stream, kellyCanbus.vAvg, 4 );
             printFloat ( *stream, kellyCanbus.wAvg, 4 );

@@ -23,6 +23,7 @@ Print *stream = &logFile;
 bool logFiles_open = false;
 bool should_log = false;
 
+int lcd_clear_count = 0;
 NewSoftSerial lcdSerial = NewSoftSerial(-1, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, -1);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
@@ -77,8 +78,8 @@ float tripDistance_GPS;
 
 float milesPerKwh_GPS;
 float whPerMile_GPS;
-//float milesPerKwh_RPM;
-//float whPerMile_RPM;
+float milesPerKwh_RPM;
+float whPerMile_RPM;
 
 #define MOTOR_THERMISTOR_PIN A0
 #define MOTOR_5V_PIN  A1
@@ -94,6 +95,9 @@ float c;
 #define BATTERY_CURRENT_SENSOR_PIN A5
 int batteryCurrentReading = 0;
 float batteryCurrent = 0;
+
+float batteryVoltage;
+float watts_sensor = 0;
 
 uint16_t file_num = 0;
 #define MAX_FILES 65536
@@ -111,8 +115,8 @@ const char str04[] PROGMEM = "FAIL";
 const char str05[] PROGMEM = "Log Files...";
 const char str06[] PROGMEM = "S:";
 const char str07[] PROGMEM = "C:";
-const char str08[] PROGMEM = "WM:";
-const char str09[] PROGMEM = "MK:";
+const char str08[] PROGMEM = "Gwm:";
+const char str09[] PROGMEM = "Rwm:";
 const char str10[] PROGMEM = "D:";
 const char str11[] PROGMEM = "NO CANBUS";
 const char str12[] PROGMEM = "KellyCanbus.count: ";
@@ -206,17 +210,15 @@ void initLCD() {
         printString_P ( lcdSerial, 25 ); // I:
         
         lcd_move_to ( 1, 0 );
-        printString_P ( lcdSerial, 8 ); // WM:
-        lcd_move_to ( 1, 10 );
-        printString_P ( lcdSerial, 9 ); // MK:
+        printString_P ( lcdSerial, 8 ); // GWm
 
         lcd_move_to ( 2, 0 );
-        printString_P ( lcdSerial, 6 ); // S:
-        lcd_move_to ( 2, 7 );
-        printString_P ( lcdSerial, 10 ); // D:
+        printString_P ( lcdSerial, 9 ); // RWm
 
         lcd_move_to ( 3, 0 );
         printString_P ( lcdSerial, 7 ); // C:
+        lcd_move_to ( 3, 6 );
+        printString_P ( lcdSerial, 10 ); // D:
         lcd_move_to ( 2, 19 );
         lcdSerial.print ( "!" );
     }
@@ -247,6 +249,7 @@ void loop() {
          * updating the LCD, and writing a record to the primary logFile.
          */
     if ( currentMillis - lastFullReadMillis > 1000 ) {
+        lcd_clear_count++;
         if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
             distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
             if ( distance_GPS > 10 ) {
@@ -266,14 +269,32 @@ void loop() {
             should_log = true;
         }
 
-        //distance_RPM = kellyCanbus.rpm * 83.934157 (circumference in inches/rev) * / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
-        distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
+        batteryCurrentReading = analogRead ( BATTERY_CURRENT_SENSOR_PIN );
+        // conversion from battery current reading to current should be
+        // batteryCurrent = batteryCurrentReading * -0.9638554 + 799.0361446; // For CSLA2DK Backwards
+        batteryCurrent = batteryCurrentReading * 0.9638554 - 799.0361446; // For CSLA2DK Forwards
+        // batteryCurrent = batteryCurrentReading * -05421687 + 449.4578313; // For CSL1EJ Backwards
+        // batteryCurrent = batteryCurrentReading * 0.9638554 - 449.4578313 // For CSLA1EJ Forwards
+
+        batteryVoltage = kellyCanbus.getTractionPackVoltage();
+        watts_sensor = batteryCurrent * batteryVoltage;
+
         if ( distance_GPS > 0 ) {
             whPerMile_GPS = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance_GPS;
             milesPerKwh_GPS = distance_GPS / ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) * 1000;
         } else {
             whPerMile_GPS = 0;
             milesPerKwh_GPS = 0;
+        }
+
+        //distance_RPM = kellyCanbus.rpm * 83.934157 (circumference in inches/rev) * / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
+        distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
+        if ( distance_RPM > 0 ) {
+            whPerMile_RPM = ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) / distance_RPM;
+            milesPerKwh_RPM = distance_RPM / ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) * 1000;
+        } else {
+            whPerMile_RPM = 0;
+            milesPerKwh_RPM = 0;
         }
 
         //motor5VReading = analogRead(MOTOR_5V_PIN);
@@ -283,13 +304,6 @@ void loop() {
         z2 = ( -1 * vOut * Z1 ) / ( vOut - motor5VActual );
         c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
         //f = c * 9 / 5 + 32;
-        
-        batteryCurrentReading = analogRead ( BATTERY_CURRENT_SENSOR_PIN );
-        // conversion from battery current reading to current should be
-        // batteryCurrent= batteryCurrentReading * -0.9638554 + 799.0361446; // For CSLA2DK Backwards
-        batteryCurrent= batteryCurrentReading * 0.9638554 - 799.0361446; // For CSLA2DK Forwards
-        // batteryCurrent= batteryCurrentReading * -05421687 + 449.4578313; // For CSL1EJ Backwards
-        // batteryCurrent= batteryCurrentReading * 0.9638554 - 449.4578313 // For CSLA1EJ Forwards
 
         currentTime = now();
 /*
@@ -298,7 +312,7 @@ void loop() {
         lcd_move_to ( 0, 9 );
         if ( kellyCanbus.available ) {
             lcdPrintFloat ( kellyCanbus.getMPHFromRPM(), 4, 1 );
-            lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 7, 2 );
+            lcdPrintFloat ( batteryVoltage, 7, 2 );
         } else {
             printString_P ( lcdSerial, 11 ); // NO CANBUS
         }
@@ -332,33 +346,42 @@ void loop() {
             logFiles_open = true;
         }
 
+        if ( lcd_clear_count > 10 ) {
+            initLCD();
+            lcd_clear_count = 0;
+        }
+
         lcd_move_to ( 0, 2 );
-        lcdPrintFloat ( kellyCanbus.getTractionPackVoltage(), 5, 1 );
-        lcdPrintFloat ( ( kellyCanbus.getTractionPackVoltage() / 36 ), 5, 2 );
+        lcdPrintFloat ( batteryVoltage, 5, 1 );
+        lcdPrintFloat ( ( batteryVoltage / 36 ), 5, 2 );
 
         if ( lcd_type == LCD_TYPE_20X4 ) {
             lcd_move_to ( 0, 15 );
-            if ( batteryCurrent < 0 ) {
+            if ( batteryCurrent <= -100 ) {
+                batteryCurrent = 0;
+            } else if ( batteryCurrent < 0 ) {
                 lcdPrintFloat ( batteryCurrent, 4, 1 );
             } else {
                 lcdPrintFloat ( batteryCurrent, 5, 1 );
             }
         }
 
-        lcd_move_to ( 1, 3 );
-        //lcdPrintFloat ( whPerMile_GPS, 6, 2 );
-        lcd_move_to ( 1, 13 );
-        //lcdPrintFloat ( milesPerKwh_GPS, 6, 2 );
+
+        lcd_move_to ( 1, 5 );
+        lcdPrintFloat ( whPerMile_GPS, 7, 2 );
+        lcdPrintFloat ( milesPerKwh_GPS, 8, 2 );
+
+        lcd_move_to ( 2, 5 );
+        lcdPrintFloat ( whPerMile_RPM, 7, 2 );
+        lcdPrintFloat ( milesPerKwh_RPM, 8, 2 );
         
-        lcd_move_to ( 2, 2 );
-        lcdPrintFloat ( fmph, 4, 1 );
-        lcd_move_to ( 2, 9 );
-        lcdPrintFloat ( tripDistance_GPS, 5, 2 );
 
         lcd_move_to ( 3, 2 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
-        lcdPrintFloat ( c, 5, 1 );
-        lcd_move_to ( 3, 15 );
+
+        lcd_move_to ( 3, 8 );
+        lcdPrintFloat ( tripDistance_GPS, 5, 2 );
+        lcd_move_to ( 3, 14 );
         printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
         lcdSerial.print ( ":" );
         printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
@@ -372,18 +395,21 @@ void loop() {
             printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
             printFloat ( *stream, fmph, 2 );
             printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
-            printFloat ( *stream, kellyCanbus.getTractionPackVoltage(), 3 );
             printFloat ( *stream, flat, 5 );
             printFloat ( *stream, flon, 5 );
             printFloat ( *stream, fcourse, 2 );
             printFloat ( *stream, distance_GPS, 5 );
+            printFloat ( *stream, distance_RPM, 5 );
+            printFloat ( *stream, batteryVoltage, 3 );
             printFloat ( *stream, batteryCurrentReading, DEC );
             printFloat ( *stream, batteryCurrent, 5 );
             printFloat ( *stream, kellyCanbus.iAvg, 4 );
             printFloat ( *stream, kellyCanbus.vAvg, 4 );
             printFloat ( *stream, kellyCanbus.wAvg, 4 );
             printFloat ( *stream, whPerMile_GPS, 5 );
+            printFloat ( *stream, whPerMile_RPM, 5 );
             printFloat ( *stream, milesPerKwh_GPS, 5 );
+            printFloat ( *stream, milesPerKwh_RPM, 5 );
             printFloat ( *stream, c, 2 );
             printInt ( *stream, motorThermistorReading, DEC );
 

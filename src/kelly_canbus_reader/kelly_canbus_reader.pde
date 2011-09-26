@@ -577,7 +577,7 @@ void init_logger() {
     }
     SdFile::dateTimeCallback(dateTime);
 
-    Serial.println ( "Searching for files..." );
+    //Serial.println ( "Searching for files..." );
     file_num = offsets[MAX_REPS + 1];
     uint8_t last;
     for ( int count = MAX_REPS; count >= 0; count-- ) {
@@ -591,14 +591,14 @@ void init_logger() {
         if (sd.exists(buffer)) {
             last = 1;
             file_num += offsets[count];
-            Serial.print ( ", exists adding: " );
+            //Serial.print ( ", exists adding: " );
         } else {
             last = -1;
             file_num -= offsets[count];
-            Serial.print ( ", does not exist, subtracting: " );
+            //Serial.print ( ", does not exist, subtracting: " );
         }
-        Serial.print ( offsets[count] , DEC );
-        Serial.println();
+        //Serial.print ( offsets[count] , DEC );
+        //Serial.println();
     }
     if ( last == 1 ) {
         file_num++;

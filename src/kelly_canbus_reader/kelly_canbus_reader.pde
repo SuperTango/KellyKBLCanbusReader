@@ -68,18 +68,19 @@ TinyGPS gps;
 long lat, lon;
 unsigned long fix_age, course, date, time;
 unsigned long chars;
-float flat, flon, fmph, fcourse;
+float flat, flon, speed_GPS, fcourse;
 float prev_flat, prev_flon;
 float distance_GPS;
 float distance_RPM;
+float speed_RPM;
 //float lastDistance_RPM;
 float tripDistance_GPS;
-//float tripDistance_RPM;
+float tripDistance_RPM;
 
 float milesPerKwh_GPS;
 float whPerMile_GPS;
-float milesPerKwh_RPM;
-float whPerMile_RPM;
+float milesPerKwh_RPM = 0;
+float whPerMile_RPM = 0;
 
 #define MOTOR_THERMISTOR_PIN A0
 #define MOTOR_5V_PIN  A1
@@ -213,14 +214,12 @@ void initLCD() {
         printString_P ( lcdSerial, 8 ); // GWm
 
         lcd_move_to ( 2, 0 );
-        printString_P ( lcdSerial, 9 ); // RWm
+        printString_P ( lcdSerial, 6 ); // S:
+        lcd_move_to ( 2, 14 );
+        printString_P ( lcdSerial, 7 ); // C:
 
         lcd_move_to ( 3, 0 );
-        printString_P ( lcdSerial, 7 ); // C:
-        lcd_move_to ( 3, 6 );
         printString_P ( lcdSerial, 10 ); // D:
-        lcd_move_to ( 2, 19 );
-        lcdSerial.print ( "!" );
     }
 }
 
@@ -233,9 +232,9 @@ void loop() {
     while ( gpsSerial.available() ) {
         if ( gps.encode( gpsSerial.read() ) ) {
             gps.f_get_position(&flat, &flon, &fix_age);
-            fmph = gps.f_speed_mph();
-            if ( fmph > 150 ) {
-                fmph = 0;
+            speed_GPS = gps.f_speed_mph();
+            if ( speed_GPS > 150 ) {
+                speed_GPS = 0;
             }
             //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
             fcourse = gps.f_course();
@@ -287,8 +286,31 @@ void loop() {
             milesPerKwh_GPS = 0;
         }
 
-        //distance_RPM = kellyCanbus.rpm * 83.934157 (circumference in inches/rev) * / 60 (sec/min) / 1000 (ms/s) / 12 (inches/ft) / 5280 (ft/mi) / 2 (motor pole messup)
-        distance_RPM = kellyCanbus.rpm * tDiffMillis * 0.00000001103931989;
+            /*
+             * The conversion of RPMs * diff_millis to a linear distance was done by taking a ride
+             * of distance 6.62763 miles, and summing up the wheel revolutions (rpm * diff_millis)
+             * which equals 7020.94775 revolutions.  
+             *
+             * Then taking 7020.94775 revs / 6.62763 miles = 1059.345158 revs/mi
+             *
+             * So distance_RPM = X rev   Y ms   1min    1sec     1 mile
+             *                     --- *      * --    * ----- * ---------------
+             *                     min          60 sec  1000ms   1059.34158 revs
+             *
+             * Reducing, distance_RPM = X rev/min * Y ms / 1.573298989 * 10E-8.
+             *
+             * Since that's too small a number for floating point on arduino to be precise, we use a
+             * constant of 1.573298989 and then divide by 1E8 (100000000) later.
+             *
+             * The speed_RPM should also derive from this equation, but for some reason, it doesn't,
+             * so i calculated a constant by taking the average GPS speed when the RPM number was
+             * 1942 (chosen since it was a high speed and there were a few different GPS readings for
+             * that RPM), then divided.  The constant there is 0.037224511.
+             */
+        distance_RPM = kellyCanbus.rpm * tDiffMillis * 1.573298989; // remember to divide by 100000000 later!
+        tripDistance_RPM += ( distance_RPM / 100000000 );
+        speed_RPM = kellyCanbus.rpm * 0.037224511; 
+        /*
         if ( distance_RPM > 0 ) {
             whPerMile_RPM = ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) / distance_RPM;
             milesPerKwh_RPM = distance_RPM / ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) * 1000;
@@ -296,6 +318,7 @@ void loop() {
             whPerMile_RPM = 0;
             milesPerKwh_RPM = 0;
         }
+        */
 
         //motor5VReading = analogRead(MOTOR_5V_PIN);
         motorThermistorReading = analogRead(MOTOR_THERMISTOR_PIN);
@@ -308,7 +331,7 @@ void loop() {
         currentTime = now();
 /*
         lcd_move_to ( 0, 4 );
-        lcdPrintFloat ( fmph, 4, 1 );
+        lcdPrintFloat ( speed_GPS, 4, 1 );
         lcd_move_to ( 0, 9 );
         if ( kellyCanbus.available ) {
             lcdPrintFloat ( kellyCanbus.getMPHFromRPM(), 4, 1 );
@@ -371,16 +394,15 @@ void loop() {
         lcdPrintFloat ( whPerMile_GPS, 7, 2 );
         lcdPrintFloat ( milesPerKwh_GPS, 8, 2 );
 
-        lcd_move_to ( 2, 5 );
-        lcdPrintFloat ( whPerMile_RPM, 7, 2 );
-        lcdPrintFloat ( milesPerKwh_RPM, 8, 2 );
-        
-
-        lcd_move_to ( 3, 2 );
+        lcd_move_to ( 2, 2 );
+        lcdPrintFloat ( speed_GPS, 5, 2 );
+        lcdPrintFloat ( speed_RPM, 6, 2 );
+        lcd_move_to ( 2, 17 );
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
 
-        lcd_move_to ( 3, 8 );
+        lcd_move_to ( 3, 2 );
         lcdPrintFloat ( tripDistance_GPS, 5, 2 );
+        lcdPrintFloat ( tripDistance_RPM, 6, 2 );
         lcd_move_to ( 3, 14 );
         printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
         lcdSerial.print ( ":" );
@@ -393,8 +415,8 @@ void loop() {
             printLong ( *stream, iterations, DEC );
             printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
             printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
-            printFloat ( *stream, fmph, 2 );
-            printFloat ( *stream, kellyCanbus.getMPHFromRPM(), 2 );
+            printFloat ( *stream, speed_GPS, 2 );
+            printFloat ( *stream, speed_RPM, 2 );
             printFloat ( *stream, flat, 5 );
             printFloat ( *stream, flon, 5 );
             printFloat ( *stream, fcourse, 2 );

@@ -30,7 +30,6 @@ class KellyCanbus
         void getCCP_MONITOR1();
         void getCCP_MONITOR2();
         float getTractionPackVoltage();
-        float getMPHFromRPM();
         String dump();
         bool canRequest (uint8_t[8], uint8_t*);
         uint8_t rawData[22];

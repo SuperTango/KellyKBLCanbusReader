@@ -134,9 +134,10 @@ const char str22[] PROGMEM = "Does not exist";
 const char str23[] PROGMEM = "START ";
 const char str24[] PROGMEM = "END";
 const char str25[] PROGMEM = "I:";
+const char str26[] PROGMEM = "READY";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
-                                    str20, str21, str22, str23, str24, str25  };
+                                    str20, str21, str22, str23, str24, str25, str26  };
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
@@ -193,6 +194,7 @@ void setup() {
     Serial.println ( FreeRam() );
 
     initLCD();
+    printlnString_P ( Serial, 26 ); 
 }
 
 void initLCD() { 
@@ -696,9 +698,11 @@ void create_filename ( uint16_t num ) {
 
 void processSerial() {
     buf_ptr = buffer;
-    if ( Serial.available() ) {
+    if ( Serial.available() > 0 ) {
         while ( Serial.available() ) {
             *buf_ptr = Serial.read();
+            Serial.print ( "read: " );
+            Serial.println ( *buf_ptr );
             if ( ( *buf_ptr == '\r' ) || ( *buf_ptr == '\n' ) ) {
                 *buf_ptr = NULL;
             }
@@ -735,11 +739,19 @@ void processSerial() {
             printString_P ( Serial, 24 ); // END
         } else if ( buffer[0] == 'G' ) {
             buf_ptr = buffer + 2;
+            Serial.print ( "buf_ptr: '" );
+            Serial.print ( buf_ptr );
+            Serial.println ( "'" );
+            Serial.print ( "Buffer: " );
+            Serial.println ( buffer );
             if ( readFile.open ( buf_ptr ) ) {
+                dir_t entry;
+                readFile.dirEntry ( &entry );
+                Serial.print ( "file:  " );
+                Serial.println ( buf_ptr );
+                Serial.print ( "file size: " );
+                Serial.println ( entry.fileSize, DEC );
                 printString_P ( Serial, 23 ); // START
-                Serial.print ( buf_ptr );
-                Serial.print ( " " );
-                Serial.println ( readFile.fileSize(), DEC );
                 int16_t n; 
                 while ( ( n = readFile.read ( buffer, MAX_BUFSIZE ) ) > 0 ) { 
                     for ( uint8_t i = 0; i < n; i++ ) {
@@ -749,7 +761,7 @@ void processSerial() {
                 printString_P ( Serial, 24 ); // END
                 readFile.close();
             } else {
-                printString_P ( Serial, 4 ); // FAIL
+                printlnString_P ( Serial, 4 ); // FAIL
             }
         } else if ( buffer[0] == 'D' ) {
             buf_ptr = buffer + 2;
@@ -757,7 +769,7 @@ void processSerial() {
                 readFile.remove();
                 printString_P ( Serial, 3 ); // OK
             } else {
-                printString_P ( Serial, 4 ); // FAIL
+                printlnString_P ( Serial, 4 ); // FAIL
             }
         }
     }

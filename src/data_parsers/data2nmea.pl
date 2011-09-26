@@ -33,10 +33,10 @@ my $last = '';
 my $dateIndex=4;
 my $timeIndex = 5;
 my $speedIndex = 6;
-my $latIndex = 9;
-my $lonIndex = 10;
-my $distanceIndex = 12;
-my $bearingIndex = 11;
+my $latIndex = 8;
+my $lonIndex = 9;
+my $bearingIndex = 10;
+my $distanceIndex = 11;
 $line = <A>;
 
 while ( $line = <A> ) {

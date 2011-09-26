@@ -206,7 +206,10 @@ void initLCD() {
         lcd_move_to ( 1, 0 );
         printString_P ( lcdSerial, 7 ); // C:
         lcd_move_to ( 1, 15 );
-        lcdSerial.print ( "!" );
+        if ( ! should_log ) {
+            lcdSerial.print ( "!" );
+        }
+
     } else {
         lcd_move_to ( 0, 0 );
         printString_P ( lcdSerial, 20 ); // V:
@@ -223,6 +226,10 @@ void initLCD() {
 
         lcd_move_to ( 3, 0 );
         printString_P ( lcdSerial, 10 ); // D:
+        lcd_move_to ( 3, 19 );
+        if ( ! should_log ) {
+            lcdSerial.print ( "!" );
+        }
     }
 }
 
@@ -425,6 +432,10 @@ void loop() {
         printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
         lcdSerial.print ( ":" );
         printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
+        if ( should_log ) {
+            lcd_move_to ( 3, 19 );
+            lcdSerial.print ( " " );
+        }
 
         if ( should_log ) {
             printLong ( *stream, currentMillis, DEC );

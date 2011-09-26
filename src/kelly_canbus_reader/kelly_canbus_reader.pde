@@ -15,7 +15,8 @@ uint8_t lcd_type = LCD_TYPE_20X4;
 
 SdFat sd;
 SdFile logFile;
-SdFile rawFile;
+//SdFile rawFile;
+SdFile nmeaFile;
 SdFile readFile;
 
 //Print *stream = &Serial;
@@ -231,8 +232,13 @@ void loop() {
     iterations++;
     currentMillis = millis();
     time_t currentTime;
+    char gpsByte;
     while ( gpsSerial.available() ) {
-        if ( gps.encode( gpsSerial.read() ) ) {
+        gpsByte = gpsSerial.read();
+        if ( should_log ) {
+            nmeaFile.print ( gpsByte );
+        }
+        if ( gps.encode( gpsByte ) ) {
             gps.f_get_position(&flat, &flon, &fix_age);
             speed_GPS = gps.f_speed_mph();
             if ( speed_GPS > 150 ) {
@@ -348,16 +354,26 @@ void loop() {
             bool error = false;
             create_filename ( file_num );
             if ( ! logFile.open ( buffer, O_WRITE | O_CREAT ) ) {
-                // TODO: What now?
                 error = true;
-                error ( "file.open" );
+                error ( "file.open1" );
             }
+            /*
             buffer[6] = 'R';
             buffer[7] = 'W';
             if ( ! rawFile.open ( buffer, O_WRITE | O_CREAT ) ) {
-                // TODO: What now?
                 error = true;
-                error ( "file.open" );
+                error ( "file.open2" );
+            }
+            */
+            buffer[6] = 'N';
+            buffer[7] = 'M';
+            buffer[9] = 'g';
+            buffer[10] = 'p';
+            buffer[11] = 's';
+            //buffer[13] = NULL;
+            if ( ! nmeaFile.open ( buffer, O_WRITE | O_CREAT ) ) {
+                error = true;
+                error ( "file.open3" );
             }
 
             if ( ! error ) {
@@ -448,12 +464,13 @@ void loop() {
         distance_GPS = 0;
         kellyCanbus.resetMotorInfo();
 
-    } else {
-        kellyCanbus.getCCP_A2D_BATCH_READ2();
+    //} else {
+        //kellyCanbus.getCCP_A2D_BATCH_READ2();
     }
         /*
          * always write the raw current and voltage info to the raw file.
          */
+/*
     if ( should_log ) {
         rawFile.print ( currentMillis, DEC );
         rawFile.print ( COMMA );
@@ -463,6 +480,7 @@ void loop() {
         }
         rawFile.println();
     }
+*/
 
     if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
         printString_P ( Serial, 12 ); // kellyCanbus.count
@@ -474,13 +492,15 @@ void loop() {
             printlnString_P ( Serial, 14 ); // syncing files.
         }
         logFile.sync();
-        rawFile.sync();
+        //rawFile.sync();
+        nmeaFile.sync();
         lastMillis2 = currentMillis;
     }
 
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
         logFile.close();
-        rawFile.close();
+        //rawFile.close();
+        nmeaFile.close();
         lcd_move_to ( 1, 0 );
         printString_P ( lcdSerial, 15 ); // DONE
         printlnString_P ( Serial, 15 ); // DONE

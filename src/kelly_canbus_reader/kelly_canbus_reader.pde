@@ -53,11 +53,18 @@ int LED3 = 7;
 uint16_t offsets[] = { 0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768 };
 int brightness = 129;
 
+/*
+ * stuff for time keeping
+ */
+int cur_year;
+tmElements_t tm;
+time_t cur_time;
+time_t last_gps_time;
+
 //uint8_t baseChars16Column[4] = { 0, 64, 16, 80 };
 uint8_t baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long currentMillis;
-unsigned long lastFullReadMillis = 0;
 unsigned long lastSaveMillis = 0;
 unsigned long lastClickMillis = 0;
 unsigned long tDiffMillis;
@@ -67,7 +74,7 @@ unsigned long tDiffMillis;
  */
 TinyGPS gps;
 long lat, lon;
-unsigned long fix_age, course, date, time;
+unsigned long fix_age, course;
 unsigned long chars;
 float flat, flon, speed_GPS, fcourse;
 float prev_flat, prev_flon;
@@ -136,13 +143,15 @@ const char str23[] PROGMEM = "START ";
 const char str24[] PROGMEM = "END";
 const char str25[] PROGMEM = "I:";
 const char str26[] PROGMEM = "READY";
+const char str27[] PROGMEM = "#LOGFMT 2";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
-                                    str20, str21, str22, str23, str24, str25, str26  };
+                                    str20, str21, str22, str23, str24, str25, str26, str27  };
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
 
+bool got_data = false;
 uint32_t iterations = 0;
  
 void setup() {
@@ -238,8 +247,8 @@ void loop() {
 
     iterations++;
     currentMillis = millis();
-    time_t currentTime;
     char gpsByte;
+    got_data = false;
     while ( gpsSerial.available() ) {
         gpsByte = gpsSerial.read();
         if ( should_log ) {
@@ -251,9 +260,15 @@ void loop() {
             if ( speed_GPS > 150 ) {
                 speed_GPS = 0;
             }
-            //gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &fix_age);
+            gps.crack_datetime( &cur_year, &tm.Month, &tm.Day, &tm.Hour, &tm.Minute, &tm.Second, NULL, &fix_age );
+            tm.Year = cur_year - 1970;
             fcourse = gps.f_course();
-            gps.get_datetime(&date, &time, &fix_age);
+            cur_time = makeTime ( tm );
+            if ( cur_time != last_gps_time ) {
+                got_data = true;
+                tDiffMillis = ( cur_time - last_gps_time ) * 1000;
+                last_gps_time = cur_time;
+            }
         }
     }
 
@@ -262,7 +277,7 @@ void loop() {
          * update, perform the full update which includes reading all data,
          * updating the LCD, and writing a record to the primary logFile.
          */
-    if ( currentMillis - lastFullReadMillis > 1000 ) {
+    if ( got_data ) {
         lcd_clear_count++;
         if ( ( prev_flat != flat ) || ( prev_flon != flon ) ) {
             distance_GPS = gps.distance_between ( prev_flat, prev_flon, flat, flon ) * METERSTOMILES;
@@ -278,7 +293,6 @@ void loop() {
 
         kellyCanbus.fetchAllRuntimeData();
 
-        tDiffMillis = currentMillis - lastFullReadMillis;
         if ( ( should_log == false ) && ( kellyCanbus.rpm > 0 ) ) {
             should_log = true;
         }
@@ -343,7 +357,6 @@ void loop() {
         c = -2 * pow(10,-5) * pow( z2, 2)  + 0.1638 * z2 - 120.28;
         //f = c * 9 / 5 + 32;
 
-        currentTime = now();
 /*
         lcd_move_to ( 0, 4 );
         lcdPrintFloat ( speed_GPS, 4, 1 );
@@ -392,6 +405,7 @@ void loop() {
                 lcdSerial.print ( " " );
             }
             logFiles_open = true;
+            printlnString_P ( *stream, 27 ); // Output Format type
         }
 
         if ( lcd_clear_count > 10 ) {
@@ -429,9 +443,15 @@ void loop() {
         lcdPrintFloat ( tripDistance_GPS, 5, 2 );
         lcdPrintFloat ( tripDistance_RPM, 6, 2 );
         lcd_move_to ( 3, 14 );
-        printIntLeadingZero ( lcdSerial, hour ( currentTime ) );
+        int tzHour = tm.Hour + TIMEZONEOFFSET;
+        if ( tzHour < 0 ) {
+            tzHour += 24;
+        } else if ( tzHour ) {
+            tzHour -= 24;
+        }
+        printIntLeadingZero ( lcdSerial, tzHour );
         lcdSerial.print ( ":" );
-        printIntLeadingZero ( lcdSerial, minute ( currentTime ) );
+        printIntLeadingZero ( lcdSerial, tm.Minute );
         if ( should_log ) {
             lcd_move_to ( 3, 19 );
             lcdSerial.print ( " " );
@@ -442,8 +462,9 @@ void loop() {
             printInt ( *stream, tDiffMillis, DEC );
             printLong ( *stream, kellyCanbus.count, DEC );
             printLong ( *stream, iterations, DEC );
-            printIntLeadingZero ( *stream, year ( currentTime ) ); printIntLeadingZero ( *stream, month ( currentTime ) ); printIntLeadingZero ( *stream, day ( currentTime ) ); printString ( *stream, COMMA );
-            printIntLeadingZero ( *stream, hour ( currentTime ) ); printIntLeadingZero ( *stream, minute ( currentTime ) ); printIntLeadingZero ( *stream, second ( currentTime )); printString ( *stream, COMMA );
+            printIntLeadingZero ( *stream, cur_year ); printIntLeadingZero ( *stream, tm.Month ); printIntLeadingZero ( *stream, tm.Day ); printString ( *stream, COMMA );
+            printIntLeadingZero ( *stream, tm.Hour ); printIntLeadingZero ( *stream, tm.Minute ); printIntLeadingZero ( *stream, tm.Second ); printString ( *stream, COMMA );
+            printInt ( *stream, fix_age, DEC );
             printFloat ( *stream, speed_GPS, 2 );
             printFloat ( *stream, speed_RPM, 2 );
             printFloat ( *stream, flat, 5 );
@@ -469,7 +490,6 @@ void loop() {
             }
             printLine ( *stream );
         }
-        lastFullReadMillis = currentMillis;
             // reset distance_GPS in case we do another round before getting another
             // set of GPS data, we don't re-calcualte wh/mi with a bogus distance_GPS.
         distance_GPS = 0;
@@ -505,7 +525,7 @@ void loop() {
         logFile.sync();
         //rawFile.sync();
         nmeaFile.sync();
-        lastMillis2 = currentMillis;
+        lastSaveMillis = currentMillis;
     }
 
     if (digitalRead(CLICK) == 0){  /* Check for Click button */
@@ -575,7 +595,7 @@ void init_logger() {
     if (! sd.init(SPI_HALF_SPEED, CHIP_SELECT)) {
         sd.initErrorHalt();
     }
-    SdFile::dateTimeCallback(dateTime);
+    SdFile::dateTimeCallback(tangoDateTimeCallback);
 
     //Serial.println ( "Searching for files..." );
     file_num = offsets[MAX_REPS + 1];
@@ -612,26 +632,23 @@ void init_logger() {
     delay ( 500 );
 }
 
-void dateTime(uint16_t* date, uint16_t* time) {
-    time_t currentTime = now();
+void tangoDateTimeCallback(uint16_t* date, uint16_t* time) {
     // return date using FAT_DATE macro to format fields
-    *date = FAT_DATE ( year ( currentTime ), month ( currentTime ), day ( currentTime ) );
+    *date = FAT_DATE ( cur_year, tm.Month, tm.Day );
 
     // return time using FAT_TIME macro to format fields
-    *time = FAT_TIME ( hour ( currentTime ), minute ( currentTime ), second ( currentTime ) );
+    *time = FAT_TIME ( tm.Hour, tm.Minute, tm.Second );
 }
 
 time_t gpsTimeToArduinoTime(){
-  tmElements_t tm;
-  int year;
-  gps.crack_datetime(&year, &tm.Month, &tm.Day, &tm.Hour, &tm.Minute, &tm.Second, NULL, NULL);
-    // ensure that the date is valid
-  if ( year < 2011 ) {
-      return 0;
-  }
-  tm.Year = year - 1970; 
-  time_t time = makeTime(tm);
-  return time + (TIMEZONEOFFSET * SECS_PER_HOUR);
+  return cur_time + (TIMEZONEOFFSET * SECS_PER_HOUR);
+}
+
+void printMillis ( Print &stream, int digits ) {
+    if ( digits < 100 ) {
+        stream.print ( '0' );
+    }
+    printIntLeadingZero ( stream, digits );
 }
 
 void printIntLeadingZero ( Print &stream, int digits ) {

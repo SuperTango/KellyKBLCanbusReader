@@ -76,6 +76,7 @@ TinyGPS gps;
 long lat, lon;
 unsigned long fix_age, course;
 unsigned long chars;
+long altitude;
 float flat, flon, speed_GPS, fcourse;
 float prev_flat, prev_flon;
 float distance_GPS;
@@ -263,6 +264,7 @@ void loop() {
             gps.crack_datetime( &cur_year, &tm.Month, &tm.Day, &tm.Hour, &tm.Minute, &tm.Second, NULL, &fix_age );
             tm.Year = cur_year - 1970;
             fcourse = gps.f_course();
+            altitude = gps.altitude();
             cur_time = makeTime ( tm );
             if ( cur_time != last_gps_time ) {
                 got_data = true;
@@ -470,6 +472,7 @@ void loop() {
             printFloat ( *stream, flat, 5 );
             printFloat ( *stream, flon, 5 );
             printFloat ( *stream, fcourse, 2 );
+            printInt ( *stream, altitude, DEC );
             printFloat ( *stream, distance_GPS, 5 );
             printFloat ( *stream, distance_RPM, 5 );
             printFloat ( *stream, batteryVoltage, 3 );

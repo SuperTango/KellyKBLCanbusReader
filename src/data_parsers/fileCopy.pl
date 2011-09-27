@@ -7,8 +7,8 @@ my $destDir = "/Volumes/Data/Users/altitude/src/Arduino/KellyKBLCanbusReader/nog
 
 opendir ( DIR, $srcDir ) || die;
 foreach my $file ( sort ( readdir ( DIR ) ) ) {
-    next if ( $file !~ /^\d{5}-(LG|RW)\.CSV$/ );
-    my $type = ( $1 eq 'LG' ) ? "log" : "raw";
+    next if ( $file !~ /^\d{5}-(LG|RW|NM)\.(CSV|GPS)$/ );
+    my $type = $1;
     my $fullFile = $srcDir . '/' . $file;
     my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat($fullFile);
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($mtime);
@@ -17,7 +17,17 @@ foreach my $file ( sort ( readdir ( DIR ) ) ) {
     if ( ! -d $newDir ) {
         mkdir ( $newDir ) || die "Failed making directory $newDir: $!";
     }
-    my $newFile = $dateStr . '-' . $type . '.CSV';
+
+    my $newFile;
+    if ( $type eq 'LG' ) {
+        $newFile = $dateStr . '-log.CSV';
+    } elsif ( $type eq 'RW' ) {
+        $newFile = $dateStr . '-raw.CSV';
+    } elsif ( $type eq 'NM' ) {
+        $newFile = $dateStr . '-gps.nmea';
+    } else {
+        next;
+    }
     my $newFullFile = $newDir . '/' . $newFile;
     print "$file -> $newFile: ";
     if ( -f $newFullFile ) {

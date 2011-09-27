@@ -58,7 +58,7 @@ uint8_t baseChars20Column[4] = { 0, 64, 20, 84 };
 
 unsigned long currentMillis;
 unsigned long lastFullReadMillis = 0;
-unsigned long lastMillis2 = 0;
+unsigned long lastSaveMillis = 0;
 unsigned long lastClickMillis = 0;
 unsigned long tDiffMillis;
 
@@ -493,7 +493,7 @@ void loop() {
     }
 */
 
-    if ( ( currentMillis - lastMillis2 ) >= 5000 ) {
+    if ( ( currentMillis - lastSaveMillis ) >= 5000 ) {
         printString_P ( Serial, 12 ); // kellyCanbus.count
         Serial.println ( kellyCanbus.count, DEC );
         printString_P ( Serial, 13 ); // iterations

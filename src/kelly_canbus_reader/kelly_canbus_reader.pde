@@ -448,7 +448,7 @@ void loop() {
         int tzHour = tm.Hour + TIMEZONEOFFSET;
         if ( tzHour < 0 ) {
             tzHour += 24;
-        } else if ( tzHour ) {
+        } else if ( tzHour >= 24 ) {
             tzHour -= 24;
         }
         printIntLeadingZero ( lcdSerial, tzHour );

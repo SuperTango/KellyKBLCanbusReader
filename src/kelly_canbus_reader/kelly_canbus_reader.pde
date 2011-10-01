@@ -28,6 +28,9 @@ int lcd_clear_count = 0;
 NewSoftSerial lcdSerial = NewSoftSerial(-1, 6);
 NewSoftSerial gpsSerial = NewSoftSerial(4, -1);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
+unsigned short failed_cs;
+unsigned short failed_cs_last;
+unsigned short failed_cs_diff;
 #define TIMEZONEOFFSET -7
 #define LCD_COMMAND 0xFE
 #define LCD_CLEAR   0x01
@@ -129,7 +132,7 @@ const char str08[] PROGMEM = "Gwm:";
 const char str09[] PROGMEM = "Rwm:";
 const char str10[] PROGMEM = "D:";
 const char str11[] PROGMEM = "NO CANBUS";
-const char str12[] PROGMEM = "KellyCanbus.count: ";
+const char str12[] PROGMEM = "Failed Checksums:  ";
 const char str13[] PROGMEM = "Total iterations: ";
 const char str14[] PROGMEM = "Syncing files";
 const char str15[] PROGMEM = "DONE";
@@ -144,10 +147,10 @@ const char str23[] PROGMEM = "START ";
 const char str24[] PROGMEM = "END";
 const char str25[] PROGMEM = "I:";
 const char str26[] PROGMEM = "READY";
-const char str27[] PROGMEM = "#LOGFMT 2";
+const char str27[] PROGMEM = "#LOGFMT 3";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
-                                    str20, str21, str22, str23, str24, str25, str26, str27  };
+                                    str20, str21, str22, str23, str24, str25, str26, str27 };
 
 // store error strings in flash to save RAM
 #define error(s) sd.errorHalt_P(PSTR(s))
@@ -254,6 +257,7 @@ void loop() {
         gpsByte = gpsSerial.read();
         if ( should_log ) {
             nmeaFile.print ( gpsByte );
+            //Serial.print ( gpsByte );
         }
         if ( gps.encode( gpsByte ) ) {
             gps.f_get_position(&flat, &flon, &fix_age);
@@ -473,6 +477,7 @@ void loop() {
             printFloat ( *stream, flon, 5 );
             printFloat ( *stream, fcourse, 2 );
             printInt ( *stream, altitude, DEC );
+            printInt ( *stream, failed_cs_diff, DEC );
             printFloat ( *stream, distance_GPS, 5 );
             printFloat ( *stream, distance_RPM, 5 );
             printFloat ( *stream, batteryVoltage, 3 );
@@ -517,10 +522,11 @@ void loop() {
 */
 
     if ( ( currentMillis - lastSaveMillis ) >= 5000 ) {
-        printString_P ( Serial, 12 ); // kellyCanbus.count
-        Serial.println ( kellyCanbus.count, DEC );
-        printString_P ( Serial, 13 ); // iterations
-        Serial.println ( iterations, DEC );
+        printString_P ( Serial, 12 ); // Failed Checksums
+        gps.stats ( NULL, NULL, &failed_cs );
+        failed_cs_diff = failed_cs - failed_cs_last;
+        failed_cs_last = failed_cs;
+        Serial.println ( failed_cs_diff, DEC );
         iterations = 0;
         if ( should_log ) {
             printlnString_P ( Serial, 14 ); // syncing files.

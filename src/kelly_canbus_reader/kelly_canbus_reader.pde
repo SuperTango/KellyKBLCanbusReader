@@ -319,26 +319,26 @@ void loop() {
 
             /*
              * The conversion of RPMs * diff_millis to a linear distance was done by taking a ride
-             * of distance 6.62763 miles, and summing up the wheel revolutions (rpm * diff_millis)
-             * which equals 7020.94775 revolutions.  
+             * of distance 5.69738 miles, and summing up the wheel revolutions (rpm * diff_millis)
+             * which equals 9339.3333 revolutions.  
              *
-             * Then taking 7020.94775 revs / 6.62763 miles = 1059.345158 revs/mi
+             * Then taking 9339.3333 revs / 5.69738 miles = 1639.233004 revs/mi
              *
              * So distance_RPM = X rev   Y ms   1min    1sec     1 mile
              *                     --- *      * --    * ----- * ---------------
-             *                     min          60 sec  1000ms   1059.34158 revs
+             *                     min          60 sec  1000ms   1639.233004 revs
              *
-             * Reducing, distance_RPM = X rev/min * Y ms / 1.573298989 * 10E-8.
+             * Reducing, distance_RPM = X rev/min * Y ms / 1.01673567 * 10E-8.
              *
              * Since that's too small a number for floating point on arduino to be precise, we use a
-             * constant of 1.573298989 and then divide by 1E8 (100000000) later.
+             * constant of 1.01673567 and then divide by 1E8 (100000000) later.
              *
              * The speed_RPM should also derive from this equation, but for some reason, it doesn't,
              * so i calculated a constant by taking the average GPS speed when the RPM number was
              * 1942 (chosen since it was a high speed and there were a few different GPS readings for
              * that RPM), then divided.  The constant there is 0.037224511.
              */
-        distance_RPM = kellyCanbus.rpm * tDiffMillis * 1.573298989; // remember to divide by 100000000 later!
+        distance_RPM = kellyCanbus.rpm * tDiffMillis * 1.01673567; // remember to divide by 100000000 later!
         tripDistance_RPM += ( distance_RPM / 100000000 );
         speed_RPM = kellyCanbus.rpm * 0.037224511; 
         /*

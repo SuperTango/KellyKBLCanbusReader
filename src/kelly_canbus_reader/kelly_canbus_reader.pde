@@ -234,7 +234,7 @@ void initLCD() {
 
         lcd_move_to ( 2, 0 );
         printString_P ( lcdSerial, 6 ); // S:
-        lcd_move_to ( 2, 14 );
+        lcd_move_to ( 2, 15 );
         printString_P ( lcdSerial, 7 ); // C:
 
         lcd_move_to ( 3, 0 );

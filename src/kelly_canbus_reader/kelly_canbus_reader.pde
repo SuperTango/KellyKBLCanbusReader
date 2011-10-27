@@ -274,6 +274,10 @@ void loop() {
                 got_data = true;
                 tDiffMillis = ( cur_time - last_gps_time ) * 1000;
                 last_gps_time = cur_time;
+                    // problem exists when acquiring time signal where tDiffMillis is way off.
+                if ( tDiffMillis < 0 ) {
+                    got_data = false;
+                }
             }
         }
     }

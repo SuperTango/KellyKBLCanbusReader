@@ -11,7 +11,9 @@ foreach my $file ( sort ( readdir ( DIR ) ) ) {
     my $type = $1;
     my $fullFile = $srcDir . '/' . $file;
     my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, $atime,$mtime,$ctime,$blksize,$blocks) = stat($fullFile);
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime($mtime);
+    my $offset = -7;
+    $mtime += ( $offset * 3600 );
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime ( $mtime );
     my $dateStr = sprintf ( "%02d_%02d_%02d-%02d_%02d_%02d", ( $year + 1900 ), ( $mon + 1 ), $mday, $hour, $min, $sec );
     my $newDir = sprintf ( "%s/%02d_%02d_%02d", $destDir, ( $year + 1900 ), ( $mon + 1 ), $mday );
     if ( ! -d $newDir ) {

@@ -106,8 +106,11 @@ float z2;
 float c;
 
 #define BATTERY_CURRENT_SENSOR_PIN A5
-int batteryCurrentReading = 0;
-float batteryCurrent = 0;
+long  batteryCurrentReadingTotal = 0;
+float batteryCurrentReadingAvg;
+float batteryCurrentReadingSingle;
+float batteryCurrentAvg;
+float batteryCurrentSingle;
 
 float batteryVoltage;
 float watts_sensor = 0;
@@ -147,7 +150,7 @@ const char str23[] PROGMEM = "START ";
 const char str24[] PROGMEM = "END";
 const char str25[] PROGMEM = "I:";
 const char str26[] PROGMEM = "READY";
-const char str27[] PROGMEM = "#LOGFMT 3";
+const char str27[] PROGMEM = "#LOGFMT 4";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
                                     str20, str21, str22, str23, str24, str25, str26, str27 };
@@ -246,6 +249,13 @@ void initLCD() {
     }
 }
 
+float convertBatteryCurrent ( float batteryCurrentReading ) {
+        // return batteryCurrentReading * -0.9638554 + 799.0361446; // For CSLA2DK Backwards
+        return batteryCurrentReading * 0.9638554 - 799.0361446; // For CSLA2DK Forwards
+        // return batteryCurrentReading * -05421687 + 449.4578313; // For CSL1EJ Backwards
+        // return batteryCurrentReading * 0.9638554 - 449.4578313 // For CSLA1EJ Forwards
+}
+
 void loop() {
     processSerial();
 
@@ -253,6 +263,7 @@ void loop() {
     currentMillis = millis();
     char gpsByte;
     got_data = false;
+    batteryCurrentReadingTotal += analogRead ( BATTERY_CURRENT_SENSOR_PIN );
     while ( gpsSerial.available() ) {
         gpsByte = gpsSerial.read();
         if ( should_log ) {
@@ -307,15 +318,13 @@ void loop() {
             should_log = true;
         }
 
-        batteryCurrentReading = analogRead ( BATTERY_CURRENT_SENSOR_PIN );
-        // conversion from battery current reading to current should be
-        // batteryCurrent = batteryCurrentReading * -0.9638554 + 799.0361446; // For CSLA2DK Backwards
-        batteryCurrent = batteryCurrentReading * 0.9638554 - 799.0361446; // For CSLA2DK Forwards
-        // batteryCurrent = batteryCurrentReading * -05421687 + 449.4578313; // For CSL1EJ Backwards
-        // batteryCurrent = batteryCurrentReading * 0.9638554 - 449.4578313 // For CSLA1EJ Forwards
+        batteryCurrentReadingSingle = analogRead ( BATTERY_CURRENT_SENSOR_PIN );
+        batteryCurrentReadingAvg = batteryCurrentReadingTotal / iterations;
+        batteryCurrentAvg = convertBatteryCurrent ( batteryCurrentReadingAvg );
+        batteryCurrentSingle = convertBatteryCurrent ( batteryCurrentReadingSingle );
 
         batteryVoltage = kellyCanbus.getTractionPackVoltage();
-        watts_sensor = batteryCurrent * batteryVoltage;
+        watts_sensor = batteryCurrentAvg * batteryVoltage;
 
         if ( distance_GPS > 0 ) {
             whPerMile_GPS = ( kellyCanbus.wAvg * tDiffMillis / ( MILLISPERHOUR ) ) / distance_GPS;
@@ -429,12 +438,12 @@ void loop() {
 
         if ( lcd_type == LCD_TYPE_20X4 ) {
             lcd_move_to ( 0, 15 );
-            if ( batteryCurrent <= -100 ) {
-                batteryCurrent = 0;
-            } else if ( batteryCurrent < 0 ) {
-                lcdPrintFloat ( batteryCurrent, 4, 1 );
+            if ( batteryCurrentAvg <= -100 ) {
+                batteryCurrentAvg = 0;
+            } else if ( batteryCurrentAvg < 0 ) {
+                lcdPrintFloat ( batteryCurrentAvg, 4, 1 );
             } else {
-                lcdPrintFloat ( batteryCurrent, 5, 1 );
+                lcdPrintFloat ( batteryCurrentAvg, 5, 1 );
             }
         }
 
@@ -485,8 +494,10 @@ void loop() {
             printFloat ( *stream, distance_GPS, 5 );
             printFloat ( *stream, distance_RPM, 5 );
             printFloat ( *stream, batteryVoltage, 3 );
-            printFloat ( *stream, batteryCurrentReading, DEC );
-            printFloat ( *stream, batteryCurrent, 5 );
+            printFloat ( *stream, batteryCurrentReadingTotal, DEC );
+            printFloat ( *stream, batteryCurrentAvg, 5 );
+            printFloat ( *stream, batteryCurrentReadingSingle, DEC );
+            printFloat ( *stream, batteryCurrentSingle, 5 );
             printFloat ( *stream, kellyCanbus.iAvg, 4 );
             printFloat ( *stream, kellyCanbus.vAvg, 4 );
             printFloat ( *stream, kellyCanbus.wAvg, 4 );
@@ -506,6 +517,8 @@ void loop() {
             // set of GPS data, we don't re-calcualte wh/mi with a bogus distance_GPS.
         distance_GPS = 0;
         kellyCanbus.resetMotorInfo();
+        iterations = 0;
+        batteryCurrentReadingTotal = 0;
 
     //} else {
         //kellyCanbus.getCCP_A2D_BATCH_READ2();
@@ -531,7 +544,6 @@ void loop() {
         failed_cs_diff = failed_cs - failed_cs_last;
         failed_cs_last = failed_cs;
         Serial.println ( failed_cs_diff, DEC );
-        iterations = 0;
         if ( should_log ) {
             printlnString_P ( Serial, 14 ); // syncing files.
         }

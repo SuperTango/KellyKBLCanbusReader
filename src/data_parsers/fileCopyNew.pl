@@ -5,7 +5,7 @@ use Getopt::Std;
 use Device::SerialPort;
 
 my $srcDir = "/Volumes/NO NAME";
-my $destDir = "/Volumes/Data/Users/altitude/src/Arduino/KellyKBLCanbusReader/nogit/LogData";
+my $destDir = "/Volumes/Data2/Users/altitude/src/Arduino/KellyKBLCanbusReader/nogit/LogData";
 my $opts = {};
 getopts ( 't:', $opts );
 

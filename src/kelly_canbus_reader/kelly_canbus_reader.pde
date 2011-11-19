@@ -92,8 +92,8 @@ float speed_RPM;
 float tripDistance_GPS;
 float tripDistance_RPM;
 
-float wh;
-float wh_total = 0;
+float batteryWh;
+float batteryWhTotal = 0;
 float milesPerKwh_GPS;
 float whPerMile_GPS;
 float milesPerKwh_RPM = 0;
@@ -157,7 +157,7 @@ const char str23[] PROGMEM = "START ";
 const char str24[] PROGMEM = "END";
 const char str25[] PROGMEM = "I:";
 const char str26[] PROGMEM = "READY";
-const char str27[] PROGMEM = "#LOGFMT 4";
+const char str27[] PROGMEM = "#LOGFMT 5";
 PROGMEM const char *strings[] = { str00, str01, str02, str03, str04, str05, str06, str07, str08, str09, 
                                     str10, str11, str12, str13, str14, str15, str16, str17, str18, str19,  
                                     str20, str21, str22, str23, str24, str25, str26, str27 };
@@ -195,8 +195,8 @@ void setup() {
     
     setSyncProvider(gpsTimeToArduinoTime);
 
-    wh = 0;
-    wh_total = 0;
+    batteryWh = 0;
+    batteryWhTotal = 0;
 
     lcd_clear();
     lcd_move_to ( 0, 0 );
@@ -340,16 +340,16 @@ void loop() {
 
         batteryVoltage = kellyCanbus.getTractionPackVoltage();
         watts_sensor = batteryCurrentAvg * batteryVoltage;
-        wh = watts_sensor * tDiffMillis / MILLISPERHOUR;
-        if ( wh > 10 ) {
-            wh = 0;
+        batteryWh = watts_sensor * tDiffMillis / MILLISPERHOUR;
+        if ( batteryWh > 10 ) {
+            batteryWh = 0;
         }
-        wh_total += wh;
+        batteryWhTotal += batteryWh;
 #ifdef DEBUG_WHLOGS
-        Serial.print ( ", wh: " );
-        Serial.print ( wh );
-        Serial.print ( ", wh_total: " );
-        Serial.print ( wh_total );
+        Serial.print ( ", batteryWh: " );
+        Serial.print ( batteryWh );
+        Serial.print ( ", batteryWhTotal: " );
+        Serial.print ( batteryWhTotal );
 #endif
 
 
@@ -378,23 +378,23 @@ void loop() {
         tripDistance_RPM += ( distance_RPM / 100000000 );
         speed_RPM = kellyCanbus.rpm * 0.037224511; 
         if ( distance_GPS > 0 ) {
-            whPerMile_GPS = wh / distance_GPS;
-            milesPerKwh_GPS = distance_GPS / wh * 1000;
+            whPerMile_GPS = batteryWh / distance_GPS;
+            milesPerKwh_GPS = distance_GPS / batteryWh * 1000;
         } else {
             whPerMile_GPS = 0;
             milesPerKwh_GPS = 0;
         }
         if ( distance_RPM > 0 ) {
-            whPerMile_RPM = wh / ( distance_RPM / 100000000 );
-            milesPerKwh_RPM = distance_RPM / 100000 / wh;
+            whPerMile_RPM = batteryWh / ( distance_RPM / 100000000 );
+            milesPerKwh_RPM = distance_RPM / 100000 / batteryWh;
             if ( whPerMile_RPM >= 250 ) {
                 whPerMile_RPM = 250;
             }
             if ( milesPerKwh_RPM >= 99 ) {
                 milesPerKwh_RPM = 99;
             }
-            whPerMile_Trip = wh_total / tripDistance_RPM;
-            milesPerKwh_Trip = tripDistance_RPM / wh_total * 1000;
+            whPerMile_Trip = batteryWhTotal / tripDistance_RPM;
+            milesPerKwh_Trip = tripDistance_RPM / batteryWhTotal * 1000;
 #ifdef DEBUG_WHLOGS
             Serial.print ( ", mk: " );
             Serial.print ( milesPerKwh_RPM );
@@ -510,7 +510,7 @@ void loop() {
         lcd_move_to ( 3, 2 );
         lcdPrintFloat ( tripDistance_RPM, 4, 1 );
         lcd_move_to ( 3, 10 );
-        lcdPrintInt ( int ( wh_total ), 4, DEC );
+        lcdPrintInt ( int ( batteryWhTotal ), 4, DEC );
         lcd_move_to ( 3, 15 );
         int tzHour = tm.Hour + TIMEZONEOFFSET;
         if ( tzHour < 0 ) {
@@ -544,6 +544,8 @@ void loop() {
             printFloat ( *stream, batteryCurrentAvg, 5 );
             printFloat ( *stream, batteryCurrentReadingSingle, DEC );
             printFloat ( *stream, batteryCurrentSingle, 5 );
+            printFloat ( *stream, batteryWh, 5 );
+            printFloat ( *stream, batteryWhTotal, 5 );
             printFloat ( *stream, kellyCanbus.iAvg, 4 );
             printFloat ( *stream, kellyCanbus.vAvg, 4 );
             printFloat ( *stream, kellyCanbus.wAvg, 4 );

@@ -280,7 +280,9 @@ void loop() {
         gpsByte = gpsSerial.read();
         if ( should_log ) {
             nmeaFile.print ( gpsByte );
-            //Serial.print ( gpsByte );
+#ifdef DEBUG_GPS
+            Serial.print ( gpsByte );
+#endif
         }
         if ( gps.encode( gpsByte ) ) {
             //Serial.println ( "GOT GOOD DATA" );

@@ -143,7 +143,7 @@ const char str09[] PROGMEM = "mK:";
 const char str10[] PROGMEM = "D:";
 const char str11[] PROGMEM = "NO CANBUS";
 const char str12[] PROGMEM = "Failed Checksums:  ";
-const char str13[] PROGMEM = "Total iterations: ";
+const char str13[] PROGMEM = "Wh:";
 const char str14[] PROGMEM = "Syncing files";
 const char str15[] PROGMEM = "DONE";
 const char str16[] PROGMEM = "No More Files";
@@ -255,9 +255,9 @@ void initLCD() {
         printString_P ( lcdSerial, 7 ); // C:
 
         lcd_move_to ( 3, 0 );
-        printString_P ( lcdSerial, 6 ); // S:
-        lcd_move_to ( 3, 8 );
         printString_P ( lcdSerial, 10 ); // D:
+        lcd_move_to ( 3, 7 );
+        printString_P ( lcdSerial, 13 ); // D:
     }
 }
 
@@ -506,9 +506,9 @@ void loop() {
         lcdPrintInt ( kellyCanbus.rawData[MOTOR_TEMP], 3, DEC );
 
         lcd_move_to ( 3, 2 );
-        lcdPrintFloat ( speed_RPM, 5, 2 );
-        lcd_move_to ( 3, 10 );
         lcdPrintFloat ( tripDistance_RPM, 4, 1 );
+        lcd_move_to ( 3, 10 );
+        lcdPrintInt ( int ( wh_total ), 4, DEC );
         lcd_move_to ( 3, 15 );
         int tzHour = tm.Hour + TIMEZONEOFFSET;
         if ( tzHour < 0 ) {

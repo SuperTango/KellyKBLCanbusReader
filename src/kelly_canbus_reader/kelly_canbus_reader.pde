@@ -9,6 +9,9 @@
 #define STATE_GATHERDATA 1
 #define STATE_TRANSFERFILES 2
 
+#undef DEBUG_WHLOGS
+#undef DEBUG_GPS
+
 #define LCD_TYPE_20X4 0
 #define LCD_TYPE_16X2 1
 uint8_t lcd_type = LCD_TYPE_20X4;
@@ -89,15 +92,14 @@ float speed_RPM;
 float tripDistance_GPS;
 float tripDistance_RPM;
 
+float wh;
+float wh_total = 0;
 float milesPerKwh_GPS;
 float whPerMile_GPS;
 float milesPerKwh_RPM = 0;
 float whPerMile_RPM = 0;
 float milesPerKwh_Trip;
 float whPerMile_Trip;
-float milesPerKwh_Total;
-float whPerMile_Total;
-unsigned long tripCounter = 0;
 
 #define MOTOR_THERMISTOR_PIN A0
 #define MOTOR_5V_PIN  A1
@@ -192,6 +194,9 @@ void setup() {
     printString_P ( Serial, 0 );
     
     setSyncProvider(gpsTimeToArduinoTime);
+
+    wh = 0;
+    wh_total = 0;
 
     lcd_clear();
     lcd_move_to ( 0, 0 );
@@ -333,6 +338,17 @@ void loop() {
 
         batteryVoltage = kellyCanbus.getTractionPackVoltage();
         watts_sensor = batteryCurrentAvg * batteryVoltage;
+        wh = watts_sensor * tDiffMillis / MILLISPERHOUR;
+        if ( wh > 10 ) {
+            wh = 0;
+        }
+        wh_total += wh;
+#ifdef DEBUG_WHLOGS
+        Serial.print ( ", wh: " );
+        Serial.print ( wh );
+        Serial.print ( ", wh_total: " );
+        Serial.print ( wh_total );
+#endif
 
 
             /*
@@ -360,46 +376,41 @@ void loop() {
         tripDistance_RPM += ( distance_RPM / 100000000 );
         speed_RPM = kellyCanbus.rpm * 0.037224511; 
         if ( distance_GPS > 0 ) {
-            whPerMile_GPS = ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) / distance_GPS;
-            milesPerKwh_GPS = distance_GPS / ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) * 1000;
+            whPerMile_GPS = wh / distance_GPS;
+            milesPerKwh_GPS = distance_GPS / wh * 1000;
         } else {
             whPerMile_GPS = 0;
             milesPerKwh_GPS = 0;
         }
         if ( distance_RPM > 0 ) {
-            tripCounter++;
-            whPerMile_RPM = ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) ) / ( distance_RPM / 100000000 );
-            milesPerKwh_RPM = distance_RPM / 100000 / ( watts_sensor * tDiffMillis / ( MILLISPERHOUR ) );
+            whPerMile_RPM = wh / ( distance_RPM / 100000000 );
+            milesPerKwh_RPM = distance_RPM / 100000 / wh;
             if ( whPerMile_RPM >= 250 ) {
                 whPerMile_RPM = 250;
             }
-            if ( milesPerKwh_RPM >= 15 ) {
-                milesPerKwh_RPM = 15;
+            if ( milesPerKwh_RPM >= 99 ) {
+                milesPerKwh_RPM = 99;
             }
-            milesPerKwh_Total += milesPerKwh_RPM;
-            milesPerKwh_Trip = milesPerKwh_Total / tripCounter;
-            whPerMile_Total += whPerMile_RPM;
-            whPerMile_Trip = whPerMile_Total / tripCounter;
-            /*
-            Serial.print ( "mk: " );
+            whPerMile_Trip = wh_total / tripDistance_RPM;
+            milesPerKwh_Trip = tripDistance_RPM / wh_total * 1000;
+#ifdef DEBUG_WHLOGS
+            Serial.print ( ", mk: " );
             Serial.print ( milesPerKwh_RPM );
-            Serial.print ( ", total: " );
-            Serial.print ( milesPerKwh_Total );
             Serial.print ( ", trip: " );
             Serial.print ( milesPerKwh_Trip );
 
             Serial.print ( ", wm: " );
             Serial.print ( whPerMile_RPM );
-            Serial.print ( ", total: " );
-            Serial.print ( whPerMile_Total );
             Serial.print ( ", trip: " );
             Serial.print ( whPerMile_Trip );
-            Serial.println();
-            */
+#endif
         } else {
             whPerMile_RPM = 0;
             milesPerKwh_RPM = 0;
         }
+#ifdef DEBUG_WHLOGS
+            Serial.println();
+#endif
 
         //motor5VReading = analogRead(MOTOR_5V_PIN);
         motorThermistorReading = analogRead(MOTOR_THERMISTOR_PIN);

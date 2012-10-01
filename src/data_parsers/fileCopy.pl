@@ -2,8 +2,10 @@
 use strict;
 use warnings;
 
-my $srcDir = "/Volumes/NO NAME";
-my $destDir = "/Volumes/Data2/Users/altitude/src/Arduino/KellyKBLCanbusReader/nogit/LogData";
+#my $srcDir = "/Volumes/NO NAME";
+my $srcDir = "/Volumes/Untitled";
+#my $srcDir = "/Users/tango/Desktop/TangoLoggerData";
+my $destDir = "/Users/tango/src/Arduino/KellyKBLCanbusReader/nogit/LogData";
 
 opendir ( DIR, $srcDir ) || die;
 foreach my $file ( sort ( readdir ( DIR ) ) ) {

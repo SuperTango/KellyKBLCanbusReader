@@ -1,7 +1,7 @@
 #include <SdFat.h>
 #include <SdFatUtil.h>
 #include <TinyGPS.h>
-#include <NewSoftSerial.h>
+#include <SoftwareSerial.h>
 #include <KellyCanbus.h>
 #include <Time.h>
 #include <avr/pgmspace.h>
@@ -28,8 +28,8 @@ bool logFiles_open = false;
 bool should_log = false;
 
 int lcd_clear_count = 0;
-NewSoftSerial lcdSerial = NewSoftSerial(-1, 6);
-NewSoftSerial gpsSerial = NewSoftSerial(4, -1);
+SoftwareSerial lcdSerial = SoftwareSerial(-1, 6);
+SoftwareSerial gpsSerial = SoftwareSerial(4, -1);
 KellyCanbus kellyCanbus = KellyCanbus(1.84);
 unsigned short failed_cs;
 unsigned short failed_cs_last;
@@ -619,8 +619,8 @@ void loop() {
             if ( brightness > 157 ) {
                 brightness = 157;
             }
-            lcdSerial.print ( 0x7C, BYTE );
-            lcdSerial.print ( brightness, BYTE );
+            lcdSerial.write ( 0x7C );
+            lcdSerial.write ( brightness );
         }
     } else if (digitalRead(DOWN) == 0) {  /* Check for Click button */
         if ( millis() - lastClickMillis > 1000 ) {
@@ -629,8 +629,8 @@ void loop() {
             if ( brightness < 128 ) {
                 brightness = 128;
             }
-            lcdSerial.print ( 0x7C, BYTE );
-            lcdSerial.print ( brightness, BYTE );
+            lcdSerial.write ( 0x7C );
+            lcdSerial.write ( brightness );
         }
     } else if (digitalRead(RIGHT) == 0) {  /* Check for Click button */
         if ( millis() - lastClickMillis > 1000 ) {
@@ -649,8 +649,8 @@ void loop() {
 
 void lcd_clear(void)
 {
-    lcdSerial.print(LCD_COMMAND,BYTE);
-    lcdSerial.print(LCD_CLEAR,BYTE);
+    lcdSerial.write(LCD_COMMAND);
+    lcdSerial.write(LCD_CLEAR);
 }  
 
 void lcd_move_to ( int row, int column ) {
@@ -659,8 +659,8 @@ void lcd_move_to ( int row, int column ) {
     commandChar += column;
         /* set the high 7 bit to 1 per the spec */
     commandChar |= 0x80;
-    lcdSerial.print(LCD_COMMAND,BYTE);
-    lcdSerial.print(commandChar,BYTE);
+    lcdSerial.write(LCD_COMMAND);
+    lcdSerial.write(commandChar);
 }
 
 void init_logger() {

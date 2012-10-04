@@ -3,8 +3,7 @@
  *
  * Copyright (c) 2008-2009  All rights reserved.
  */
-#include <WProgram.h>
-#include "WConstants.h"
+#include <Arduino.h>
 #include <stdio.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>

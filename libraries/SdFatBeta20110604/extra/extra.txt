@@ -1,5 +1,0 @@
-examplesV1 - Examples from earlier version of SdFat.
-
-makePinInclude - Sketch used to make Sd2PinMap.h
-
-SdFatTestSuite - Development tests.

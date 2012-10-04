@@ -3,8 +3,15 @@
  *
  * Copyright (c) 2008-2009  All rights reserved.
  */
-#include <WProgram.h>
-#include "WConstants.h"
+
+#if ARDUINO>=100
+#include <Arduino.h> // Arduino 1.0
+#else
+#include <Wprogram.h> // Arduino 0022
+#endif
+#include <stdint.h>
+#include <avr/pgmspace.h>
+
 #include <stdio.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -48,7 +55,6 @@ char CanbusClass::message_rx(unsigned char *buffer) {
 //				buffer[] = message[];																												
 			}
 			else {
-                        //      PRINT ( "Can not read the message" );
 			//	PRINT("Kann die Nachricht nicht auslesen\n\n");
 			}
 		}
@@ -57,7 +63,6 @@ char CanbusClass::message_rx(unsigned char *buffer) {
 
 char CanbusClass::message_tx(void) {
 	tCAN message;
-        uint8_t ret;
 
 
 	// einige Testwerte
@@ -79,104 +84,99 @@ char CanbusClass::message_tx(void) {
 //	mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), (1<<REQOP1));	
 		mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
 		
-        ret = mcp2515_send_message(&message);
-        Serial.println ( ret );
-	if (ret) {
-            //	SET(LED2_HIGH);
-            return 1;
-	} else {
-            //	PRINT("Fehler: konnte die Nachricht nicht auslesen\n\n");
-            return 0;
+	if (mcp2515_send_message(&message)) {
+		//	SET(LED2_HIGH);
+		return 1;
+	
 	}
+	else {
+	//	PRINT("Fehler: konnte die Nachricht nicht auslesen\n\n");
+	return 0;
+	}
+return 1;
  
 }
 
-char CanbusClass::ecu_req(unsigned char pid,  char *buffer) {
-    tCAN message;
-    float engine_data;
-    int timeout = 0;
-    char message_ok = 0;
-    uint8_t ret;
-    // Prepair message
-    message.id = PID_REQUEST;
-    message.header.rtr = 0;
-    message.header.length = 8;
-    message.data[0] = 0x02;
-    message.data[1] = 0x01;
-    message.data[2] = pid;
-    message.data[3] = 0x00;
-    message.data[4] = 0x00;
-    message.data[5] = 0x00;
-    message.data[6] = 0x00;
-    message.data[7] = 0x00;						
-    
-    mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
-    // SET(LED2_HIGH);	
-    ret = mcp2515_send_message(&message);
-    Serial.print ( "sent message, returned: " );
-    Serial.println ( ret );
-    if (ret) {
-    }
-    
-    while(timeout < 4000)
-    {
-        //Serial.print ( "timeout: " );
-        //Serial.println ( timeout );
-        timeout++;
-        if (mcp2515_check_message()) 
-        {
-            Serial.println ( "check_msg returned 1" );
+char CanbusClass::ecu_req(unsigned char pid,  char *buffer) 
+{
+	tCAN message;
+	float engine_data;
+	int timeout = 0;
+	char message_ok = 0;
+	// Prepair message
+	message.id = PID_REQUEST;
+	message.header.rtr = 0;
+	message.header.length = 8;
+	message.data[0] = 0x02;
+	message.data[1] = 0x01;
+	message.data[2] = pid;
+	message.data[3] = 0x00;
+	message.data[4] = 0x00;
+	message.data[5] = 0x00;
+	message.data[6] = 0x00;
+	message.data[7] = 0x00;						
+	
 
-            if (mcp2515_get_message(&message)) 
-            {
-                Serial.println ( "got a message" );
-                if((message.id == PID_REPLY) && (message.data[2] == pid))	// Check message is the reply and its the right PID
-                {
-                    switch(message.data[2])
-                    {   /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
-                        case ENGINE_RPM:  			//   ((A*256)+B)/4    [RPM]
-                        engine_data =  ((message.data[3]*256) + message.data[4])/4;
-                        sprintf(buffer,"%d rpm ",(int) engine_data);
-                        break;
-        
-                        case ENGINE_COOLANT_TEMP: 	// 	A-40			  [degree C]
-                        engine_data =  message.data[3] - 40;
-                        sprintf(buffer,"%d degC",(int) engine_data);
-                        break;
-        
-                        case VEHICLE_SPEED: 		// A				  [km]
-                        engine_data =  message.data[3];
-                        sprintf(buffer,"%d km ",(int) engine_data);
-                        break;
+	mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
+//		SET(LED2_HIGH);	
+	if (mcp2515_send_message(&message)) {
+	}
+	
+	while(timeout < 4000)
+	{
+		timeout++;
+				if (mcp2515_check_message()) 
+				{
 
-                        case MAF_SENSOR:   			// ((256*A)+B) / 100  [g/s]
-                        engine_data =  ((message.data[3]*256) + message.data[4])/100;
-                        sprintf(buffer,"%d g/s",(int) engine_data);
-                        break;
+					if (mcp2515_get_message(&message)) 
+					{
+							if((message.id == PID_REPLY) && (message.data[2] == pid))	// Check message is the reply and its the right PID
+							{
+								switch(message.data[2])
+								{   /* Details from http://en.wikipedia.org/wiki/OBD-II_PIDs */
+									case ENGINE_RPM:  			//   ((A*256)+B)/4    [RPM]
+									engine_data =  ((message.data[3]*256) + message.data[4])/4;
+									sprintf(buffer,"%d rpm ",(int) engine_data);
+									break;
+							
+									case ENGINE_COOLANT_TEMP: 	// 	A-40			  [degree C]
+									engine_data =  message.data[3] - 40;
+									sprintf(buffer,"%d degC",(int) engine_data);
+							
+									break;
+							
+									case VEHICLE_SPEED: 		// A				  [km]
+									engine_data =  message.data[3];
+									sprintf(buffer,"%d km ",(int) engine_data);
+							
+									break;
 
-                        case O2_VOLTAGE:    		// A * 0.005   (B-128) * 100/128 (if B==0xFF, sensor is not used in trim calc)
-                        engine_data = message.data[3]*0.005;
-                        sprintf(buffer,"%d v",(int) engine_data);
-                        break;
-        
-                        case THROTTLE:				// Throttle Position
-                        engine_data = (message.data[3]*100)/255;
-                        sprintf(buffer,"%d %% ",(int) engine_data);
-                        break;
-            
-                    }
-                    message_ok = 1;
-                }
+									case MAF_SENSOR:   			// ((256*A)+B) / 100  [g/s]
+									engine_data =  ((message.data[3]*256) + message.data[4])/100;
+									sprintf(buffer,"%d g/s",(int) engine_data);
+							
+									break;
 
-            }
-        } else {
-            Serial.println ( "check_msg returned 0" );
-        }
-        if(message_ok == 1) {
-            return 1;
-        }
-    }
-    return 0;
+									case O2_VOLTAGE:    		// A * 0.005   (B-128) * 100/128 (if B==0xFF, sensor is not used in trim calc)
+									engine_data = message.data[3]*0.005;
+									sprintf(buffer,"%d v",(int) engine_data);
+							
+									case THROTTLE:				// Throttle Position
+									engine_data = (message.data[3]*100)/255;
+									sprintf(buffer,"%d %% ",(int) engine_data);
+									break;
+							
+								}
+								message_ok = 1;
+							}
+
+					}
+				}
+				if(message_ok == 1) return 1;
+	}
+
+
+ 	return 0;
 }
 
 

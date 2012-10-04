@@ -2,6 +2,11 @@
   time.h - low level time and date functions
 */
 
+/*
+  July 3 2011 - fixed elapsedSecsThisWeek macro (thanks Vincent Valdy for this)
+              - fixed  daysToTime_t macro (thanks maniacbug)
+*/     
+
 #ifndef _Time_h
 #define _Time_h
 
@@ -57,14 +62,19 @@ typedef time_t(*getExternalTime)();
 #define dayOfWeek(_time_)  ((( _time_ / SECS_PER_DAY + 4)  % DAYS_PER_WEEK)+1) // 1 = Sunday
 #define elapsedDays(_time_) ( _time_ / SECS_PER_DAY)  // this is number of days since Jan 1 1970
 #define elapsedSecsToday(_time_)  (_time_ % SECS_PER_DAY)   // the number of seconds since last midnight 
+// The following macros are used in calculating alarms and assume the clock is set to a date later than Jan 1 1971
+// Always set the correct time before settting alarms
 #define previousMidnight(_time_) (( _time_ / SECS_PER_DAY) * SECS_PER_DAY)  // time at the start of the given day
-#define nextMidnight(_time_) ( previousMidnight(_time_)  + SECS_PER_DAY ) // time at the end of the given day 
-#define elapsedSecsThisWeek(_time_)  (elapsedSecsToday(_time_) +  (dayOfWeek(_time_) * SECS_PER_DAY) )   
+#define nextMidnight(_time_) ( previousMidnight(_time_)  + SECS_PER_DAY )   // time at the end of the given day 
+#define elapsedSecsThisWeek(_time_)  (elapsedSecsToday(_time_) +  ((dayOfWeek(_time_)-1) * SECS_PER_DAY) )   // note that week starts on day 1
+#define previousSunday(_time_)  (_time_ - elapsedSecsThisWeek(_time_))      // time at the start of the week for the given time
+#define nextSunday(_time_) ( previousSunday(_time_)+SECS_PER_WEEK)          // time at the end of the week for the given time
+
 
 /* Useful Macros for converting elapsed time to a time_t */
 #define minutesToTime_t ((M)) ( (M) * SECS_PER_MIN)  
 #define hoursToTime_t   ((H)) ( (H) * SECS_PER_HOUR)  
-#define daysToTime_t    ((H)) ( (D) * SECS_PER_DAY) 
+#define daysToTime_t    ((D)) ( (D) * SECS_PER_DAY) // fixed on Jul 22 2011
 #define weeksToTime_t   ((W)) ( (W) * SECS_PER_WEEK)   
 
 /*============================================================================*/

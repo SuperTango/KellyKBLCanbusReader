@@ -19,6 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
   
   30 Dec 2009 - Initial release
+  5 Sep 2011 updated for Arduino 1.0
  */
 
 #include <Wire.h>
@@ -43,7 +44,7 @@ void  DS1307RTC::set(time_t t)
 {
   tmElements_t tm;
   breakTime(t, tm);
-  tm.Second |= 0x80;  // stop the clock
+  tm.Second |= 0x80;  // stop the clock 
   write(tm); 
   tm.Second &= 0x7f;  // start the clock
   write(tm); 
@@ -53,12 +54,24 @@ void  DS1307RTC::set(time_t t)
 void DS1307RTC::read( tmElements_t &tm)
 {
   Wire.beginTransmission(DS1307_CTRL_ID);
+#if ARDUINO >= 100  
+  Wire.write((uint8_t)0x00); 
+#else
   Wire.send(0x00);
+#endif  
   Wire.endTransmission();
 
   // request the 7 data fields   (secs, min, hr, dow, date, mth, yr)
   Wire.requestFrom(DS1307_CTRL_ID, tmNbrFields);
-  
+#if ARDUINO >= 100    
+  tm.Second = bcd2dec(Wire.read() & 0x7f);   
+  tm.Minute = bcd2dec(Wire.read() );
+  tm.Hour =   bcd2dec(Wire.read() & 0x3f);  // mask assumes 24hr clock
+  tm.Wday = bcd2dec(Wire.read() );
+  tm.Day = bcd2dec(Wire.read() );
+  tm.Month = bcd2dec(Wire.read() );
+  tm.Year = y2kYearToTm((bcd2dec(Wire.read())));
+#else
   tm.Second = bcd2dec(Wire.receive() & 0x7f);   
   tm.Minute = bcd2dec(Wire.receive() );
   tm.Hour =   bcd2dec(Wire.receive() & 0x3f);  // mask assumes 24hr clock
@@ -66,13 +79,23 @@ void DS1307RTC::read( tmElements_t &tm)
   tm.Day = bcd2dec(Wire.receive() );
   tm.Month = bcd2dec(Wire.receive() );
   tm.Year = y2kYearToTm((bcd2dec(Wire.receive())));
+#endif  
 }
 
 void DS1307RTC::write(tmElements_t &tm)
 {
   Wire.beginTransmission(DS1307_CTRL_ID);
-  Wire.send(0x00); // reset register pointer
-  
+#if ARDUINO >= 100  
+  Wire.write((uint8_t)0x00); // reset register pointer  
+  Wire.write(dec2bcd(tm.Second)) ;   
+  Wire.write(dec2bcd(tm.Minute));
+  Wire.write(dec2bcd(tm.Hour));      // sets 24 hour format
+  Wire.write(dec2bcd(tm.Wday));   
+  Wire.write(dec2bcd(tm.Day));
+  Wire.write(dec2bcd(tm.Month));
+  Wire.write(dec2bcd(tmYearToY2k(tm.Year))); 
+#else  
+  Wire.send(0x00); // reset register pointer  
   Wire.send(dec2bcd(tm.Second)) ;   
   Wire.send(dec2bcd(tm.Minute));
   Wire.send(dec2bcd(tm.Hour));      // sets 24 hour format
@@ -80,7 +103,7 @@ void DS1307RTC::write(tmElements_t &tm)
   Wire.send(dec2bcd(tm.Day));
   Wire.send(dec2bcd(tm.Month));
   Wire.send(dec2bcd(tmYearToY2k(tm.Year)));   
-
+#endif
   Wire.endTransmission();  
 }
 // PRIVATE FUNCTIONS

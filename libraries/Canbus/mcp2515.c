@@ -28,7 +28,15 @@
 
 #include <avr/io.h>
 #include <util/delay.h>
-#include "WConstants.h"
+
+#if ARDUINO>=100
+#include <Arduino.h> // Arduino 1.0
+#else
+#include <Wprogram.h> // Arduino 0022
+#endif
+#include <stdint.h>
+#include <avr/pgmspace.h>
+
 #include "global.h"
 #include "mcp2515.h"
 #include "mcp2515_defs.h"
